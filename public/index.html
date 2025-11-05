@@ -9,14 +9,14 @@
         /* --- ESTILOS CSS - TEMA ESCURO --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; /* Remove margens padrão */
+            margin: 0;
             background-color: #1a1a2e; /* Fundo escuro principal */
             color: #e0e0e0; /* Texto claro */
             line-height: 1.6;
         }
 
         .header {
-            background-color: #0f0f1b; /* Header um pouco mais escuro */
+            background-color: #0f0f1b;
             padding: 20px;
             text-align: center;
             border-bottom: 1px solid #333;
@@ -24,7 +24,7 @@
         }
 
         .header h1 {
-            color: #92a8d1; /* Cor para o título principal */
+            color: #92a8d1;
             margin: 0;
             font-size: 2.5em;
         }
@@ -38,21 +38,20 @@
             max-width: 1200px;
             margin: 0 auto;
             display: flex;
-            gap: 25px; /* Mais espaço entre os cards */
+            gap: 25px;
             flex-wrap: wrap;
-            padding: 0 20px; /* Padding nas laterais */
+            padding: 0 20px;
         }
         
         .card {
             background-color: #2a2a4a; /* Fundo dos cards */
             padding: 25px;
-            border-radius: 12px; /* Cantos mais arredondados */
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); /* Sombra mais intensa */
-            flex: 1 1 300px; /* Flexível para layouts em colunas */
-            min-height: 250px; /* Altura mínima um pouco maior */
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+            flex: 1 1 300px;
+            min-height: 250px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* Espaço entre título e conteúdo */
         }
 
         h2 {
@@ -74,7 +73,6 @@
             font-size: 1.1em;
         }
 
-        .success { color: #28a745; }
         .error { color: #dc3545; font-style: italic; }
         
         .cotacao-item {
@@ -83,12 +81,12 @@
             align-items: center;
             margin-bottom: 12px;
             padding: 8px 0;
-            border-bottom: 1px dashed #444; /* Linha divisória mais sutil */
+            border-bottom: 1px dashed #444;
             font-size: 1.1em;
         }
 
         .cotacao-item:last-child {
-            border-bottom: none; /* Remove borda do último item */
+            border-bottom: none;
         }
 
         .cotacao-item span:first-child {
@@ -96,31 +94,22 @@
             color: #b0b0b0;
         }
 
-        .cotacao-item span:last-child {
-            display: flex;
-            align-items: center;
-            gap: 8px; /* Espaço entre valor e variação */
-            font-weight: bold;
-        }
-
         .variacao {
             font-weight: bold;
-            font-size: 0.9em; /* Tamanho menor para a variação */
+            font-size: 0.9em;
             padding: 3px 6px;
             border-radius: 4px;
         }
-        .up { color: #28a745; background-color: rgba(40, 167, 69, 0.1); } /* Verde claro */
-        .down { color: #dc3545; background-color: rgba(220, 53, 69, 0.1); } /* Vermelho claro */
+        .up { color: #28a745; background-color: rgba(40, 167, 69, 0.1); }
+        .down { color: #dc3545; background-color: rgba(220, 53, 69, 0.1); }
         
-        /* Ícone do clima */
         #clima-data img {
             vertical-align: middle;
             margin-left: 5px;
-            width: 40px; /* Tamanho maior para o ícone */
+            width: 40px;
             height: 40px;
         }
 
-        /* Responsividade básica */
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
@@ -145,4 +134,115 @@
             <div id="clima-data">Carregando dados do clima...</div>
         </div>
 
-        <div id="cotacao-card" class="card
+        <div id="cotacao-card" class="card">
+            <h2>📈 Cotações ao Vivo</h2>
+            <div id="cotacao-data">Carregando dados de cotação...</div>
+        </div>
+    </div>
+
+    <script>
+        // Função principal que executa a busca de dados
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchClima();
+            fetchCotacao();
+        });
+
+        // ===========================================
+        // FUNÇÃO DE CLIMA (Consumindo /getClima)
+        // ===========================================
+        async function fetchClima() {
+            const climaDiv = document.getElementById('clima-data');
+            // Chamada à Netlify Function (seu Back-end)
+            const url = '/.netlify/functions/getClima?city=Curitiba'; 
+
+            try {
+                const response = await fetch(url);
+                // Verifica se a resposta HTTP é OK antes de tentar o JSON
+                if (!response.ok) {
+                    climaDiv.innerHTML = `<p class="error">Erro de rede (${response.status}) ao buscar a função.</p>`;
+                    return;
+                }
+                
+                const data = await response.json();
+
+                if (data.error) {
+                    // SE O BACK-END RETORNAR UM ERRO (CHAVE INVÁLIDA)
+                    climaDiv.innerHTML = `<p class="error">
+                        🚨 Erro de API: ${data.error}<br>
+                        O problema persiste na chave do OpenWeatherMap.
+                    </p>`;
+                    return;
+                }
+
+                // Renderiza os dados de sucesso
+                const html = `
+                    <h3>${data.cidade}, ${data.pais}</h3>
+                    <p>Temperatura: <strong>${data.temperatura}°C</strong></p>
+                    <p>Condição: ${data.descricao} <img src="http://openweathermap.org/img/wn/${data.icone}.png" alt="Ícone do Clima"></p>
+                    <p>Mínima: ${data.temperaturaMin}°C | Máxima: ${data.temperaturaMax}°C</p>
+                `;
+                climaDiv.innerHTML = html;
+
+            } catch (error) {
+                // SE HOUVER UM ERRO DE REDE/CONEXÃO TOTAL
+                climaDiv.innerHTML = `<p class="error">
+                    Falha na comunicação total com o servidor. Verifique se o 'netlify dev' está rodando.
+                </p>`;
+                console.error('Erro ao buscar clima:', error);
+            }
+        }
+
+        // ===========================================
+        // FUNÇÃO DE COTAÇÃO (Consumindo /getCotacao)
+        // ===========================================
+        async function fetchCotacao() {
+            const cotacaoDiv = document.getElementById('cotacao-data');
+            const url = '/.netlify/functions/getCotacao';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    cotacaoDiv.innerHTML = `<p class="error">Erro de rede (${response.status}) ao buscar a função.</p>`;
+                    return;
+                }
+
+                const cotacoes = await response.json();
+
+                if (cotacoes.error) {
+                    cotacaoDiv.innerHTML = `<p class="error">Erro ao buscar cotações: ${cotacoes.error}</p>`;
+                    return;
+                }
+
+                let html = '';
+                for (const key in cotacoes) {
+                    const item = cotacoes[key];
+                    if (!item || item.valor === undefined) continue; // Pula se o dado estiver incompleto
+                    
+                    const nome = key.toUpperCase();
+                    
+                    const variacaoClass = item.variacao > 0 ? 'up' : (item.variacao < 0 ? 'down' : '');
+                    const simbolo = item.variacao > 0 ? '▲' : (item.variacao < 0 ? '▼' : '—');
+                    
+                    html += `
+                        <div class="cotacao-item">
+                            <span>${nome} (BRL)</span>
+                            <span>
+                                R$ ${item.valor}
+                                <span class="variacao ${variacaoClass}">
+                                    ${simbolo} ${item.variacao}%
+                                </span>
+                            </span>
+                        </div>
+                    `;
+                }
+
+                cotacaoDiv.innerHTML = html;
+
+            } catch (error) {
+                cotacaoDiv.innerHTML = `<p class="error">Falha na conexão com o servidor de cotação.</p>`;
+                console.error('Erro ao buscar cotação:', error);
+            }
+        }
+    </script>
+</body>
+</html>
