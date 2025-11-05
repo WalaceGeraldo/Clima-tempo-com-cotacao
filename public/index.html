@@ -2,13 +2,154 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Clima & Cotação - Portfólio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clima & Cotação - Portfólio (Netlify Functions)</title>
+    
+    <style>
+        /* --- ESTILOS CSS BÁSICOS PARA LEITURA --- */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            flex: 1 1 300px; /* Flexível para layouts em colunas */
+            min-height: 200px;
+        }
+        h1 { color: #007bff; }
+        h2 { border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-top: 0; }
+        .success { color: green; }
+        .error { color: red; font-style: italic; }
+        .cotacao-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .variacao {
+            font-weight: bold;
+        }
+        /* Ajuste de cor para variação */
+        .up { color: green; }
+        .down { color: red; }
+    </style>
 </head>
 <body>
-    <h1>Site Clima & Cotação</h1>
-    <p>Front-end rodando com sucesso. Próximo passo: integrar o Back-end!</p>
+    <h1>🌍 Clima & Cotação (Portfólio)</h1>
+    <p>Dados obtidos com segurança via Netlify Functions (Serverless Back-end).</p>
+
+    <div class="container">
+        <div id="clima-card" class="card">
+            <h2>☁️ Clima Atual (Curitiba)</h2>
+            <div id="clima-data">Carregando dados do clima...</div>
+        </div>
+
+        <div id="cotacao-card" class="card">
+            <h2>📈 Cotações ao Vivo</h2>
+            <div id="cotacao-data">Carregando dados de cotação...</div>
+        </div>
+    </div>
+
     <script>
-        // O Front-end fará uma chamada para "/.netlify/functions/getclima"
+        // Função principal que executa a busca de dados
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchClima();
+            fetchCotacao();
+        });
+
+        // ===========================================
+        // FUNÇÃO DE CLIMA (Consumindo /getClima)
+        // ===========================================
+        async function fetchClima() {
+            const climaDiv = document.getElementById('clima-data');
+            // Chamada à Netlify Function (seu Back-end local)
+            const url = '/.netlify/functions/getClima?city=Curitiba'; 
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.error) {
+                    climaDiv.innerHTML = `<p class="error">Erro ao buscar clima: ${data.error}</p>`;
+                    return;
+                }
+
+                // Renderiza os dados de sucesso
+                const html = `
+                    <h3>${data.cidade}, ${data.pais}</h3>
+                    <p>Temperatura: <strong>${data.temperatura}°C</strong></p>
+                    <p>Condição: ${data.descricao} <img src="http://openweathermap.org/img/wn/${data.icone}.png" alt="Ícone do Clima"></p>
+                    <p>Mínima: ${data.temperaturaMin}°C | Máxima: ${data.temperaturaMax}°C</p>
+                `;
+                climaDiv.innerHTML = html;
+
+            } catch (error) {
+                climaDiv.innerHTML = `<p class="error">Falha na conexão com o servidor de clima.</p>`;
+                console.error('Erro ao buscar clima:', error);
+            }
+        }
+
+        // ===========================================
+        // FUNÇÃO DE COTAÇÃO (Consumindo /getCotacao)
+        // ===========================================
+        async function fetchCotacao() {
+            const cotacaoDiv = document.getElementById('cotacao-data');
+            // Chamada à Netlify Function (seu Back-end local)
+            const url = '/.netlify/functions/getCotacao';
+
+            try {
+                const response = await fetch(url);
+                const cotacoes = await response.json();
+
+                if (cotacoes.error) {
+                    cotacaoDiv.innerHTML = `<p class="error">Erro ao buscar cotações: ${cotacoes.error}</p>`;
+                    return;
+                }
+
+                let html = '';
+                // Itera sobre as cotações (dolar, euro, bitcoin)
+                for (const key in cotacoes) {
+                    const item = cotacoes[key];
+                    const nome = key.toUpperCase();
+                    
+                    // Lógica para colorir a variação
+                    const variacaoClass = item.variacao > 0 ? 'up' : (item.variacao < 0 ? 'down' : '');
+                    const simbolo = item.variacao > 0 ? '▲' : (item.variacao < 0 ? '▼' : '—');
+                    
+                    // Adiciona o item ao HTML
+                    html += `
+                        <div class="cotacao-item">
+                            <span>${nome} (BRL)</span>
+                            <span>
+                                R$ ${item.valor}
+                                <span class="variacao ${variacaoClass}">
+                                    ${simbolo} ${item.variacao}%
+                                </span>
+                            </span>
+                        </div>
+                    `;
+                }
+
+                cotacaoDiv.innerHTML = html;
+
+            } catch (error) {
+                cotacaoDiv.innerHTML = `<p class="error">Falha na conexão com o servidor de cotação.</p>`;
+                console.error('Erro ao buscar cotação:', error);
+            }
+        }
     </script>
 </body>
 </html>
