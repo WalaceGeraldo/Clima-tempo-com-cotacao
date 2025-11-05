@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadIcons(); 
     
     // 2. Inicia a busca de dados
-    fetchClima('Nova Iorque'); 
+    fetchClima('rio de janeiro'); 
     renderMarketData(); 
     renderNewsData();
     
