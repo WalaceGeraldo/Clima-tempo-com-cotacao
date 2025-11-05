@@ -1,76 +1,92 @@
 // public/js/scripts.js
 
-// Variável global para gerenciar a instância do gráfico
-let tempChartInstance = null; 
+let forecastChartInstance = null; 
+let marketChartInstance = null;
 
-// --- Definição dos Skeleton Loaders (Componentes HTML) ---
-const CLIMA_SKELETON = `
-    <div class="animate-pulse flex flex-col space-y-4 pt-4">
-        <div class="flex justify-between items-center">
-            <div class="space-y-2">
-                <div class="h-6 bg-gray-500 rounded w-48"></div>
-                <div class="h-4 bg-gray-600 rounded w-32"></div>
-            </div>
-            <div class="h-10 w-10 bg-gray-500 rounded-full"></div>
-        </div>
-        <div class="h-40 bg-gray-700 rounded-lg"></div>
-        <div class="grid grid-cols-4 gap-4">
-            <div class="h-12 bg-gray-600 rounded"></div>
-            <div class="h-12 bg-gray-600 rounded"></div>
-            <div class="h-12 bg-gray-600 rounded"></div>
-            <div class="h-12 bg-gray-600 rounded"></div>
-        </div>
-    </div>
-`;
+// --- DADOS MOCKADOS FINAIS (INCLUINDO BRASIL) ---
+const MOCKED_MARKET_DATA = [
+    // Índice do Mercado (IBOV)
+    { pair: "IBOV", price: "128.500", change: 0.17, volume: "105.4M" }, 
+    // Ativos Brasileiros (Blue Chips)
+    { pair: "PETR4", price: "30.50", change: 0.50, volume: "65.1M" }, 
+    { pair: "VALE3", price: "64.62", change: -1.12, volume: "42.0M" },
+    { pair: "ITUB4", price: "30.96", change: -0.30, volume: "39.7M" },
+    // Ativos Internacionais/Cripto
+    { pair: "EUR/USD", price: "1.0095", change: -0.32, volume: "1.2M" },
+    { pair: "XRP/BRL", price: "4.32", change: 0.85, volume: "2.1M" } 
+];
 
-const COTACAO_SKELETON = `
-    <div class="animate-pulse space-y-4 mt-4">
-        <div class="flex justify-between items-center h-8 bg-gray-600 rounded"></div>
-        <div class="flex justify-between items-center h-8 bg-gray-600 rounded w-11/12"></div>
-        <div class="flex justify-between items-center h-8 bg-gray-600 rounded w-10/12"></div>
-        <div class="flex justify-between items-center h-8 bg-gray-600 rounded w-9/12"></div>
-    </div>
-`;
-// --- Fim das Definições dos Skeleton Loaders ---
+const MOCKED_NEWS_DATA = [
+    { title: "Tech Stocks Rally Amidst Increase Volatility", source: "MarketWatch", imageUrl: "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" },
+    { title: "How Bitcoin Bulls Dominate Amidst Regulatory Concerns", source: "CoinDesk", imageUrl: "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" },
+    { title: "Global Economic Outlook: What to Expect Next Quarter", source: "Bloomberg", imageUrl: "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" }
+];
 
-// --- Definição dos Ícones para o Gráfico (Simulação) ---
+const MOCKED_DAYS_FORECAST = [
+    { day: 'Dom', icon: '01d', high: 36, low: 20 }, 
+    { day: 'Seg', icon: '02d', high: 35, low: 19 }, 
+    { day: 'Ter', icon: '04d', high: 32, low: 18 }, 
+    { day: 'Qua', icon: '09d', high: 28, low: 15 }, 
+    { day: 'Qui', icon: '10d', high: 30, low: 17 }, 
+    { day: 'Sex', icon: '03d', high: 33, low: 21 }, 
+    { day: 'Sáb', icon: '01d', high: 34, low: 22 }, 
+];
+
 const iconImages = {};
 const iconUrls = [
     { name: 'sun', url: 'http://openweathermap.org/img/wn/01d.png' },
+    { name: 'cloud-sun', url: 'http://openweathermap.org/img/wn/02d.png' },
     { name: 'clouds', url: 'http://openweathermap.org/img/wn/04d.png' },
     { name: 'rain', url: 'http://openweathermap.org/img/wn/10d.png' }
 ];
 
 function loadIcons() {
-    iconUrls.forEach(item => {
-        const img = new Image();
-        img.src = item.url;
-        img.width = 32;
-        img.height = 32;
-        iconImages[item.name] = img;
-    });
+    return Promise.all(iconUrls.map(item => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                img.width = 32;
+                img.height = 32;
+                iconImages[item.name] = img;
+                resolve();
+            };
+            img.onerror = () => {
+                iconImages[item.name] = null; 
+                resolve();
+            };
+            img.src = item.url;
+        });
+    }));
 }
-// --- Fim da Definição dos Ícones ---
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // 1. Inicia o Front-end exibindo os loaders
-    document.getElementById('clima-data').innerHTML = CLIMA_SKELETON;
-    document.getElementById('cotacao-data').innerHTML = COTACAO_SKELETON;
+    document.getElementById('clima-data').innerHTML = `
+        <div class="animate-pulse flex items-center space-x-4">
+            <div class="h-16 w-16 bg-gray-700 rounded-full"></div>
+            <div class="space-y-2">
+                <div class="h-6 bg-gray-700 rounded w-48"></div>
+                <div class="h-4 bg-gray-600 rounded w-32"></div>
+            </div>
+        </div>
+        <div class="h-24 bg-gray-700 rounded mt-4"></div>
+    `;
     
-    loadIcons(); // Carrega as imagens dos ícones primeiro
+    await loadIcons(); 
     
     // 2. Inicia a busca de dados
-    fetchClima('Curitiba'); 
-    fetchCotacao();
-
+    fetchClima('Nova Iorque'); 
+    renderMarketData(); 
+    renderNewsData();
+    
+    // 3. Configura o botão de busca
     const searchButton = document.getElementById('search-button');
     const cityInput = document.getElementById('city-input');
 
     searchButton.addEventListener('click', () => {
         const cityName = cityInput.value.trim(); 
         if (cityName) {
-            document.getElementById('clima-data').innerHTML = CLIMA_SKELETON; // Mostrar loader na nova busca
             fetchClima(cityName);
         } else {
             alert('Por favor, digite o nome de uma cidade.');
@@ -85,29 +101,29 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ===========================================
-// FUNÇÃO DE CLIMA (Com Gráfico e Loading State)
+// FUNÇÃO DE CLIMA (FINAL - COM GRID DE ESTATÍSTICAS)
 // ===========================================
 async function fetchClima(city) { 
     const climaDiv = document.getElementById('clima-data');
 
-    if (tempChartInstance) {
-        tempChartInstance.destroy();
+    if (forecastChartInstance) {
+        forecastChartInstance.destroy();
     }
 
-    const url = `/.netlify/functions/getClima?city=${encodeURIComponent(city)}`; 
+    const url = `/.netlify/functions/getClima?city=${encodeURIComponent(city)}&lang=pt`; 
 
     try {
         const response = await fetch(url);
         
         if (!response.ok) {
-            climaDiv.innerHTML = `<p class="text-red-700">Erro de rede (${response.status}) ao buscar a função.</p>`;
+            climaDiv.innerHTML = `<p class="text-red-400">Erro de rede (${response.status}) ao buscar a função.</p>`;
             return;
         }
         
         const data = await response.json();
 
         if (data.error) {
-            climaDiv.innerHTML = `<p class="text-red-700 font-semibold mt-4">
+            climaDiv.innerHTML = `<p class="text-red-400 font-semibold mt-4">
                 🚨 Erro de API para ${city}: ${data.error}<br>
                 Verifique o nome da cidade ou a chave do OpenWeatherMap.
             </p>`;
@@ -116,124 +132,266 @@ async function fetchClima(city) {
 
         // 1. ESTRUTURA HTML FINAL
         climaDiv.innerHTML = `
-            <div class="flex justify-between items-start mb-4">
+            <div class="weather-current-details">
+                <img src="http://openweathermap.org/img/wn/${data.icone}@4x.png" alt="Ícone do Clima" class="weather-icon">
                 <div>
-                    <h3 class="text-2xl font-bold text-gray-900">${data.cidade}, ${data.pais}</h3>
-                    <p class="text-lg text-gray-600 mt-1">${data.descricao.charAt(0).toUpperCase() + data.descricao.slice(1)}</p>
-                    <p class="text-4xl font-extrabold text-blue-600 mt-2">${Math.round(data.temperatura)}°C</p>
-                </div>
-                <div>
-                    <img src="http://openweathermap.org/img/wn/${data.icone}@4x.png" alt="Ícone do Clima" class="weather-icon mx-auto">
+                    <p class="current-temp">${Math.round(data.temperatura)}°C</p>
+                    <p class="current-desc">${data.descricao.charAt(0).toUpperCase() + data.descricao.slice(1)}, ${data.cidade}</p>
+                    <p class="current-location">${data.cidade}, ${data.pais}</p>
                 </div>
             </div>
 
-            <h4 class="text-lg font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-3">Previsão de 5 Horas (Simulado)</h4>
-            <div class="h-32 mb-4 bg-gray-100 p-2 rounded-lg border border-gray-300"> 
-                <canvas id="temperatura-chart"></canvas>
+            <h4 class="forecast-title">PREVISÃO 7 DIAS</h4>
+            <div class="forecast-chart-wrap"> 
+                <canvas id="forecast-chart-canvas"></canvas>
             </div>
             
-            <h4 class="text-lg font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-3 mt-4">Detalhes do Dia</h4>
-            <div id="clima-detalhes" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Mínima</p><p class="text-md font-semibold">${Math.round(data.temperaturaMin)}°C</p></div>
-                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Máxima</p><p class="text-md font-semibold">${Math.round(data.temperaturaMax)}°C</p></div>
-                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Umidade</p><p class="text-md font-semibold">75%</p></div> 
-                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Vento</p><p class="text-md font-semibold">12 km/h</p></div> 
+            <div class="weather-stats-grid-wrap">
+                
+                <div class="stat-item-grid">
+                    <p class="stat-label">Amplitude Térmica</p>
+                    <span class="stat-value-highlight">
+                        <span class="stat-value-high">${Math.round(data.temperaturaMax)}°C</span> / 
+                        <span class="stat-value-low">${Math.round(data.temperaturaMin)}°C</span>
+                    </span>
+                </div>
+                
+                <div class="stat-item-grid">
+                    <p class="stat-label">Umidade</p>
+                    <span class="stat-value-highlight">75%</span>
+                </div>
+                
+                <div class="stat-item-grid">
+                    <p class="stat-label">Vento</p>
+                    <span class="stat-value-highlight">12 km/h</span>
+                </div>
+                
+                <div class="stat-item-grid empty-stat">
+                    <p class="stat-label">Pressão</p>
+                    <span class="stat-value-highlight">1012 hPa</span>
+                </div>
             </div>
         `;
-        
+
         // 2. CRIAÇÃO DO GRÁFICO (Chart.js)
-        const ctx = document.getElementById('temperatura-chart').getContext('2d');
-        tempChartInstance = new Chart(ctx, {
+        const forecastCtx = document.getElementById('forecast-chart-canvas').getContext('2d');
+        const temps = MOCKED_DAYS_FORECAST.map(d => (d.high + d.low) / 2); 
+        const highTemps = MOCKED_DAYS_FORECAST.map(d => d.high); 
+        const lowTemps = MOCKED_DAYS_FORECAST.map(d => d.low); 
+        const labels = MOCKED_DAYS_FORECAST.map(d => d.day);
+
+        const chartIcons = MOCKED_DAYS_FORECAST.map(day => {
+            if (day.icon === '01d') return iconImages.sun;
+            if (day.icon === '02d') return iconImages['cloud-sun'];
+            if (day.icon === '04d') return iconImages.clouds;
+            if (day.icon === '09d' || day.icon === '10d') return iconImages.rain;
+            return iconImages.clouds;
+        });
+
+
+        forecastChartInstance = new Chart(forecastCtx, {
             type: 'line',
             data: {
-                labels: ['Agora', '1h', '2h', '3h', '4h'], 
+                labels: labels,
                 datasets: [{
-                    label: 'Temperatura (°C)',
-                    data: [data.temperatura, data.temperatura + 2, data.temperatura - 1, data.temperatura + 3, data.temperatura], 
-                    borderColor: '#3b82f6', 
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)', 
-                    fill: true,
-                    tension: 0.3,
-                    pointBackgroundColor: '#fff',
-                    pointStyle: [
-                        iconImages.sun,        
-                        iconImages.clouds,     
-                        iconImages.rain,       
-                        iconImages.sun,        
-                        iconImages.clouds      
-                    ], 
-                    pointRadius: 16, 
+                    label: 'Temperatura Média',
+                    data: temps, 
+                    borderColor: '#6366f1', 
+                    backgroundColor: 'rgba(99, 102, 241, 0.2)', 
+                    fill: 'start', 
+                    tension: 0.4, 
+                    pointRadius: 0, 
+                    borderWidth: 2
+                }, {
+                    label: 'Máxima',
+                    data: highTemps,
+                    type: 'line',
+                    borderColor: '#f87171',
+                    pointRadius: 4,
+                    pointBackgroundColor: '#f87171',
+                    borderWidth: 0,
+                    showLine: false,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Mínima',
+                    data: lowTemps,
+                    type: 'line',
+                    borderColor: '#60a5fa',
+                    pointRadius: 4,
+                    pointBackgroundColor: '#60a5fa',
+                    borderWidth: 0,
+                    showLine: false,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Ícones',
+                    data: highTemps.map(h => h + 1),
+                    type: 'line',
+                    borderColor: 'transparent',
+                    pointStyle: chartIcons,
+                    pointRadius: 16,
+                    showLine: false,
+                    yAxisID: 'y'
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false, 
+                maintainAspectRatio: false,
                 scales: {
-                    x: { ticks: { color: '#6b7280' }, grid: { display: false } },
-                    y: { display: false, grid: { color: '#e5e7eb' } },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#9ca3af' }
+                    },
+                    y: {
+                        display: false, 
+                        grid: { display: false },
+                        min: Math.min(...lowTemps) - 5, 
+                        max: Math.max(...highTemps) + 5
+                    }
                 },
                 plugins: {
                     legend: { display: false },
-                    title: { display: false }
+                    tooltip: { enabled: true }
                 }
             }
         });
 
     } catch (error) {
-        climaDiv.innerHTML = `<p class="text-red-700">Falha na comunicação total com o servidor.</p>`;
+        climaDiv.innerHTML = `<p class="text-red-400">Falha na comunicação total com o servidor.</p>`;
         console.error('Erro ao buscar clima:', error);
     }
 }
 
 // ===========================================
-// FUNÇÃO DE COTAÇÃO (Final)
+// FUNÇÃO PARA RENDERIZAR DADOS DE MERCADO (Com clique dinâmico)
 // ===========================================
-async function fetchCotacao() {
-    const cotacaoDiv = document.getElementById('cotacao-data');
+function generateMockedDataForAsset(assetPair) {
+    const basePrice = parseFloat(MOCKED_MARKET_DATA.find(item => item.pair === assetPair)?.price.replace('.', '').replace(',', '.')) || 50; 
     
-    const url = '/.netlify/functions/getCotacao';
-
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            cotacaoDiv.innerHTML = `<p class="text-red-700">Erro de rede (${response.status}) ao buscar a função.</p>`;
-            return;
-        }
-
-        const cotacoes = await response.json();
-
-        if (cotacoes.error) {
-            cotacaoDiv.innerHTML = `<p class="text-red-700">Erro ao buscar cotações: ${cotacoes.error}</p>`;
-            return;
-        }
-
-        let html = '';
-        for (const key in cotacoes) {
-            const item = cotacoes[key];
-            if (!item || item.valor === undefined) continue;
-            
-            const nome = key.toUpperCase();
-            
-            const variacaoClass = item.variacao > 0 ? 'up-text up-bg' : (item.variacao < 0 ? 'down-text down-bg' : 'text-gray-600');
-            const simbolo = item.variacao > 0 ? '▲' : (item.variacao < 0 ? '▼' : '—');
-            
-            html += `
-                <div class="flex justify-between items-center pb-3 border-b border-gray-300 last:border-b-0">
-                    <span class="text-gray-700 font-medium">${nome} (BRL)</span>
-                    <span class="flex items-center gap-2 font-bold text-gray-900">
-                        R$ ${item.valor}
-                        <span class="text-sm font-semibold ${variacaoClass} p-1 rounded">
-                            ${simbolo} ${item.variacao}%
-                        </span>
-                    </span>
-                </div>
-            `;
-        }
-
-        cotacaoDiv.innerHTML = html;
-
-    } catch (error) {
-        cotacaoDiv.innerHTML = `<p class="text-red-700">Falha na conexão com o servidor de cotação.</p>`;
-        console.error('Erro ao buscar cotação:', error);
+    const dataPoints = [];
+    let currentPrice = basePrice * (1 + (Math.random() * 0.02 - 0.01)); 
+    
+    for (let i = 0; i < 6; i++) {
+        dataPoints.push(Math.round(currentPrice * 100) / 100); 
+        currentPrice += (Math.random() * 0.05 - 0.025) * basePrice;
     }
+
+    return {
+        labels: ['9h', '10h', '11h', '12h', '13h', '14h'],
+        data: dataPoints
+    };
+}
+
+function renderAssetChart(assetPair) {
+    const marketChartDiv = document.getElementById('market-chart');
+    marketChartDiv.innerHTML = '<canvas id="market-chart-canvas"></canvas>';
+    const ctx = document.getElementById('market-chart-canvas').getContext('2d');
+    
+    const assetData = generateMockedDataForAsset(assetPair);
+
+    if (marketChartInstance) {
+        marketChartInstance.destroy();
+    }
+
+    marketChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: assetData.labels,
+            datasets: [{
+                label: `Preço ${assetPair}`,
+                data: assetData.data,
+                borderColor: '#34d399', 
+                backgroundColor: 'rgba(52, 211, 153, 0.2)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#34d399',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#9ca3af' }
+                },
+                y: {
+                    grid: { color: '#374151' },
+                    ticks: { color: '#9ca3af' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: `Gráfico Intraday: ${assetPair}`,
+                    color: '#f3f4f6'
+                }
+            }
+        }
+    });
+}
+
+function renderMarketData() {
+    const marketTableDiv = document.getElementById('market-table-data');
+
+    // Inicializa o gráfico do primeiro ativo
+    renderAssetChart(MOCKED_MARKET_DATA[0].pair); 
+
+    // Renderizar Tabela de Dados de Mercado
+    let tableHtml = '';
+    MOCKED_MARKET_DATA.forEach(item => {
+        const variacaoClass = item.change > 0 ? 'up-text' : (item.change < 0 ? 'down-text' : 'neutral-text');
+        const simbolo = item.change > 0 ? '▲' : (item.change < 0 ? '▼' : '—');
+        
+        tableHtml += `
+            <div class="market-table-row clickable-asset" data-asset="${item.pair}">
+                <span class="market-pair">${item.pair}</span>
+                <span class="market-price">${item.price}</span>
+                <span class="market-change ${variacaoClass}">${simbolo} ${Math.abs(item.change).toFixed(2)}%</span>
+                <span class="market-volume">${item.volume}</span>
+            </div>
+        `;
+    });
+    marketTableDiv.innerHTML = tableHtml;
+    
+    // Adicionar event listeners após a renderização da tabela
+    document.querySelectorAll('.clickable-asset').forEach(row => {
+        row.addEventListener('click', () => {
+            const asset = row.getAttribute('data-asset');
+            renderAssetChart(asset);
+            
+            // Adicionar classe de destaque na linha clicada
+            document.querySelectorAll('.clickable-asset').forEach(r => r.classList.remove('active-asset'));
+            row.classList.add('active-asset');
+        });
+    });
+    
+    // Define o IBOV como ativo ativo por padrão no carregamento
+    document.querySelector(`[data-asset="${MOCKED_MARKET_DATA[0].pair}"]`)?.classList.add('active-asset');
+}
+
+// ===========================================
+// FUNÇÃO PARA RENDERIZAR NOTÍCIAS (MOCKADO)
+// ===========================================
+function renderNewsData() {
+    const newsDataLgDiv = document.getElementById('news-data-lg');
+    const newsDataSmDiv = document.getElementById('news-data-sm');
+
+    let newsHtml = '';
+    MOCKED_NEWS_DATA.forEach(news => {
+        newsHtml += `
+            <div class="news-item">
+                <img src="https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" alt="Thumbnail" class="news-thumb">
+                <div>
+                    <p class="news-title">${news.title}</p>
+                    <p class="news-source">${news.source}</p>
+                </div>
+            </div>
+        `;
+    });
+
+    newsDataLgDiv.innerHTML = newsHtml; 
+    newsDataSmDiv.innerHTML = newsHtml; 
 }

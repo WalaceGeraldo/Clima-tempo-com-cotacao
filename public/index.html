@@ -3,66 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clima & Cotação - Portfólio (Serverless)</title>
+    <title>Global Data Hub - Portfólio</title>
     
-    <script src="https://cdn.tailwindcss.com"></script> 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
     <link rel="stylesheet" href="css/style.css">
-
+    
     <style>
-        /* Ajuste fino na fonte raiz para reduzir a escala global (de 16px para 14px) */
+        /* AJUSTE FINAL: Reduz o tamanho da fonte raiz para 13px (tornado compacto) */
         html {
-            font-size: 14px; 
+            font-size: 13px; 
         }
-        /* Garantir que o body use a fonte correta */
         body {
-             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+             font-family: 'Inter', sans-serif;
         }
     </style>
 </head>
 <body>
     
-    <main class="container mx-auto p-4 md:p-8">
-        
-        <div class="text-center mb-10 mt-6">
-            <h1 class="text-4xl font-extrabold text-blue-600 tracking-wider">🌍 Clima & Cotação</h1>
-            <p class="text-gray-600 mt-3 text-lg font-light">Seu projeto de portfólio. Dados via Netlify Functions.</p>
+    <header class="header-main">
+        <div class="header-container">
+            <div class="logo-group">
+                <span class="logo-icon">🌐</span>
+                <h1 class="logo-text">GLOBAL DATA HUB</h1>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-link">Weather</a>
+                <a href="#" class="nav-link">Markets</a>
+                <a href="#" class="nav-link">News</a>
+            </nav>
+            <button id="search-mobile" class="mobile-menu-btn">☰</button>
         </div>
+    </header>
 
-        <div class="max-w-xl mx-auto mb-10">
-            <div class="flex gap-2 bg-white p-2 rounded-xl shadow-xl border border-gray-200">
+    <main class="main-container">
+        
+        <div class="search-bar-wrap">
+             <div class="search-input-group">
                 <input 
                     type="text" 
                     id="city-input" 
-                    placeholder="Buscar cidade (Ex: Rio de Janeiro)" 
-                    class="flex-1 p-2 rounded-lg bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
+                    placeholder="Buscar cidade (Ex: New York)" 
+                    class="city-input-field"
                 >
                 <button 
                     id="search-button" 
-                    class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="search-btn"
                 >
                     Buscar
                 </button>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <section class="top-row-layout">
             
-            <div id="clima-card" class="lg:col-span-2 bg-white p-6 rounded-3xl shadow-2xl border border-gray-200 flex flex-col transition duration-300 hover:shadow-blue-300/50">
-                <h2 class="text-xl font-bold text-blue-600 pb-3 border-b border-gray-300 mb-4">☁️ Detalhes do Clima</h2>
-                <div id="clima-data" class="flex-grow">
-                    <p class="text-gray-500">Use a busca acima ou aguarde o carregamento inicial...</p>
+            <div id="local-weather-card" class="data-card weather-card top-row-item">
+                <div class="card-header-group">
+                    <h2 class="card-title">PREVISÃO DO TEMPO</h2>
+                    <span class="card-subtitle">Atualizado Agora</span> 
+                </div>
+                <div id="clima-data" class="clima-content-area">
+                    </div>
+            </div>
+
+            <div id="live-market-data-card" class="data-card market-card top-row-item">
+                <h2 class="card-title">BOLSA EM TEMPO REAL</h2>
+                <div id="market-chart" class="market-chart-area">
+                </div>
+                <div id="market-table-data" class="market-table-area">
                 </div>
             </div>
 
-            <div id="cotacao-card" class="lg:col-span-1 bg-white p-6 rounded-3xl shadow-2xl border border-gray-200 flex flex-col transition duration-300 hover:shadow-blue-300/50">
-                <h2 class="text-xl font-bold text-blue-600 pb-3 border-b border-gray-300 mb-4">📈 Cotações ao Vivo</h2>
-                <div id="cotacao-data" class="space-y-4 flex-grow">
-                    <p class="text-gray-500">Carregando dados de cotação...</p>
+        </section>
+
+
+        <section class="bottom-row-layout">
+            
+            <div id="trending-news-card-lg" class="data-card news-card-lg news-main">
+                <h2 class="card-title">TRENDING NEWS</h2>
+                <div id="news-data-lg" class="news-list-area">
                 </div>
             </div>
 
-        </div>
+            <div id="trending-news-card-sm" class="data-card news-card-sm news-side">
+                <h2 class="card-title">TRENDING NEWS</h2>
+                <div id="news-data-sm" class="news-list-area">
+                </div>
+            </div>
+
+        </section>
+
     </main>
 
     <script src="js/scripts.js"></script>
