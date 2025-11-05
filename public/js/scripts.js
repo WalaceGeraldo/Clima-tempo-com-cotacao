@@ -116,28 +116,28 @@ async function fetchClima(city) {
 
         // 1. ESTRUTURA HTML FINAL
         climaDiv.innerHTML = `
-            <div class="flex justify-between items-start mb-6">
+            <div class="flex justify-between items-start mb-4">
                 <div>
-                    <h3 class="text-4xl font-bold text-gray-900">${data.cidade}, ${data.pais}</h3>
+                    <h3 class="text-2xl font-bold text-gray-900">${data.cidade}, ${data.pais}</h3>
                     <p class="text-lg text-gray-600 mt-1">${data.descricao.charAt(0).toUpperCase() + data.descricao.slice(1)}</p>
-                    <p class="text-6xl font-extrabold text-blue-600 mt-2">${Math.round(data.temperatura)}°C</p>
+                    <p class="text-4xl font-extrabold text-blue-600 mt-2">${Math.round(data.temperatura)}°C</p>
                 </div>
                 <div>
                     <img src="http://openweathermap.org/img/wn/${data.icone}@4x.png" alt="Ícone do Clima" class="weather-icon mx-auto">
                 </div>
             </div>
 
-            <h4 class="text-xl font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-4">Previsão de 5 Horas (Simulado)</h4>
-            <div class="h-40 mb-6 bg-gray-100 p-2 rounded-lg border border-gray-300"> 
+            <h4 class="text-lg font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-3">Previsão de 5 Horas (Simulado)</h4>
+            <div class="h-32 mb-4 bg-gray-100 p-2 rounded-lg border border-gray-300"> 
                 <canvas id="temperatura-chart"></canvas>
             </div>
             
-            <h4 class="text-xl font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-4 mt-6">Detalhes do Dia</h4>
-            <div id="clima-detalhes" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Mínima</p><p class="text-lg font-semibold">${Math.round(data.temperaturaMin)}°C</p></div>
-                <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Máxima</p><p class="text-lg font-semibold">${Math.round(data.temperaturaMax)}°C</p></div>
-                <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Umidade</p><p class="text-lg font-semibold">75%</p></div> 
-                <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Vento</p><p class="text-lg font-semibold">12 km/h</p></div> 
+            <h4 class="text-lg font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-3 mt-4">Detalhes do Dia</h4>
+            <div id="clima-detalhes" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Mínima</p><p class="text-md font-semibold">${Math.round(data.temperaturaMin)}°C</p></div>
+                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Máxima</p><p class="text-md font-semibold">${Math.round(data.temperaturaMax)}°C</p></div>
+                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Umidade</p><p class="text-md font-semibold">75%</p></div> 
+                <div class="bg-gray-100 p-2 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-xs">Vento</p><p class="text-md font-semibold">12 km/h</p></div> 
             </div>
         `;
         
