@@ -1,4 +1,4 @@
-/* public/css/style.css - CSS PURO FINAL (Fundo Escuro com Cards Escuros) */
+/* public/css/style.css - CSS PURO FINAL */
 
 /* === RESET E BASE === */
 * {
@@ -8,8 +8,8 @@
 }
 
 body {
-    background-color: #0c141b; /* SUA CONFIGURAÇÃO: Fundo escuro/preto */
-    color: #f3f4f6; /* Ajustado para BRANCO/CLARO para contraste no fundo escuro */
+    background-color: #0c141b; /* Fundo principal escuro (sua configuração) */
+    color: #f3f4f6; /* Texto principal branco/claro */
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
 }
@@ -35,7 +35,7 @@ a {
 }
 
 .header-container {
-    max-width: 1200px; /* Largura do contêiner */
+    max-width: 1200px; 
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
@@ -87,7 +87,7 @@ a {
 }
 
 /* Media Querys para Responsividade */
-@media (min-width: 768px) { /* md: */
+@media (min-width: 768px) { 
     .header-container {
         padding-left: 1.5rem; 
         padding-right: 1.5rem;
@@ -103,7 +103,7 @@ a {
     }
 }
 
-@media (min-width: 1024px) { /* lg: */
+@media (min-width: 1024px) { /* Desktop */
     .main-container {
         padding: 2rem; 
         grid-template-columns: 1fr; 
@@ -124,7 +124,7 @@ a {
         flex-direction: row; 
     }
     
-    /* Card de Clima (LOCAL WEATHER) - MAIS LARGO E MENOS ALTO */
+    /* Card de Clima (LOCAL WEATHER) - MAIS LARGO */
     #local-weather-card.top-row-item {
         flex: 1.25 1 60%; 
         max-width: 60%;
@@ -214,7 +214,7 @@ a {
     border-radius: 0.75rem; 
     box-shadow: 0 10px 15px rgba(0, 0, 0, 0.25); 
     border: 1px solid #374151; 
-    color: #f3f4f6; /* Texto claro dentro do card escuro */
+    color: #f3f4f6; 
 }
 
 .card-title {
@@ -228,7 +228,7 @@ a {
     font-size: 0.875rem; 
 }
 
-/* --- CLIMA --- */
+/* --- CLIMA: ESTILOS INJETADOS --- */
 .clima-content-area {
     min-height: 12.5rem; 
     color: #f3f4f6;
@@ -265,10 +265,10 @@ a {
     padding-top: 0.75rem;
 }
 
-/* ESTATÍSTICAS DO CLIMA (Layout Grid) */
+/* ESTATÍSTICAS DE CLIMA (LAYOUT HORIZONTAL DE GRID) */
 .weather-stats-grid-wrap {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2 colunas em telas pequenas */
+    grid-template-columns: repeat(2, 1fr); 
     gap: 1rem;
     padding-top: 1rem;
     margin-top: 1.5rem;
@@ -277,7 +277,7 @@ a {
 
 @media (min-width: 768px) {
     .weather-stats-grid-wrap {
-        grid-template-columns: repeat(4, 1fr); /* 4 colunas em telas maiores */
+        grid-template-columns: repeat(4, 1fr); 
     }
 }
 
@@ -306,15 +306,68 @@ a {
 }
 
 .stat-value-high {
-    color: #f87171; /* Vermelho para Máxima */
+    color: #f87171; 
     font-weight: 700;
 }
 .stat-value-low {
-    color: #60a5fa; /* Azul para Mínima */
+    color: #60a5fa; 
     font-weight: 700;
 }
 
-/* --- MARKET TABLE (Ajustes de Interatividade) --- */
+
+/* === PREVISÃO HORIZONTAL (SELETOR DE DIAS) === */
+.daily-selector-grid {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto; 
+    padding-bottom: 0.5rem; 
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #374151;
+}
+
+.day-selector-btn {
+    flex-shrink: 0; 
+    min-width: 3.5rem; 
+    padding: 0.5rem 0.25rem;
+    background-color: #1f2937; 
+    border-radius: 0.5rem;
+    color: #f3f4f6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    width: 60px; 
+    transition: background-color 0.2s;
+    border: 1px solid transparent;
+}
+
+.day-selector-btn:hover {
+    background-color: #374151; 
+}
+
+.active-day-selector {
+    background-color: #3b82f6 !important; 
+    border-color: #60a5fa;
+    font-weight: 600;
+}
+
+.day-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.day-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.temp-high, .temp-low {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+
+/* --- MARKET TABLE (Interatividade) --- */
 .market-table-area > div {
     display: flex; 
     justify-content: space-between; 

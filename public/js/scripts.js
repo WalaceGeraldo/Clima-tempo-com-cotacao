@@ -32,6 +32,16 @@ const MOCKED_DAYS_FORECAST = [
     { day: 'Sáb', icon: '01d', high: 34, low: 22 }, 
 ];
 
+const MOCKED_HOURLY_FORECAST = [
+    { label: '10h', temp: 19, icon: '01d' },
+    { label: '11h', temp: 21, icon: '02d' },
+    { label: '12h', temp: 20, icon: '04d' },
+    { label: '13h', temp: 23, icon: '01d' },
+    { label: '14h', temp: 25, icon: '03d' },
+    { label: '15h', temp: 22, icon: '09d' },
+    { label: '16h', temp: 24, icon: '01d' },
+];
+
 const iconImages = {};
 const iconUrls = [
     { name: 'sun', url: 'http://openweathermap.org/img/wn/01d.png' },
@@ -100,8 +110,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+// --- FUNÇÃO DE CRIAÇÃO DE GRÁFICO DE HORA ---
+function createHourlyChart() {
+    // Destruir gráfico anterior se houver
+    if (forecastChartInstance) {
+        forecastChartInstance.destroy();
+    }
+    
+    const canvas = document.getElementById('forecast-chart-canvas');
+    if (!canvas) return; // Evita erro se o elemento não existir
+    const ctx = canvas.getContext('2d');
+    
+    const hourlyTemps = MOCKED_HOURLY_FORECAST.map(h => h.temp);
+    const hourlyLabels = MOCKED_HOURLY_FORECAST.map(h => h.label);
+    const iconSet = MOCKED_HOURLY_FORECAST.map(h => {
+        if (h.icon === '01d') return iconImages.sun;
+        if (h.icon === '02d') return iconImages['cloud-sun'];
+        if (h.icon === '04d') return iconImages.clouds;
+        if (h.icon === '09d') return iconImages.rain;
+        return iconImages.clouds;
+    });
+
+    forecastChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: hourlyLabels,
+            datasets: [{
+                label: 'Temperatura Horária (°C)',
+                data: hourlyTemps,
+                borderColor: '#6366f1',
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                fill: 'start',
+                tension: 0.4,
+                pointRadius: 16, 
+                pointStyle: iconSet, 
+                pointBackgroundColor: 'rgba(0,0,0,0)' 
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { 
+                    reverse: true, // <--- AQUI: Inverte o eixo X
+                    grid: { display: false }, 
+                    ticks: { color: '#9ca3af' } 
+                },
+                y: { display: false, grid: { display: false } }
+            },
+            plugins: {
+                legend: { display: false },
+                title: { display: false }
+            }
+        }
+    });
+}
+
+// --- FUNÇÃO PRINCIPAL DE ATUALIZAÇÃO DO CLIMA AO CLICAR ---
+function updateMainWeatherDetails(dayIndex) {
+    const dayData = MOCKED_DAYS_FORECAST[dayIndex];
+    
+    const mainDetailsDiv = document.getElementById('current-main-details');
+
+    if (!mainDetailsDiv) return;
+
+    mainDetailsDiv.innerHTML = `
+        <img src="http://openweathermap.org/img/wn/${dayData.icon}@4x.png" alt="Ícone do Clima" class="weather-icon flex-shrink-0">
+        <div>
+            <p class="current-temp">${dayData.high}°C</p>
+            <p class="current-desc">Previsão para ${dayData.day}</p>
+            <p class="current-location">Máx: ${dayData.high}°C | Mín: ${dayData.low}°C</p>
+        </div>
+    `;
+}
+
+
 // ===========================================
-// FUNÇÃO DE CLIMA (FINAL - COM GRID DE ESTATÍSTICAS)
+// FUNÇÃO DE CLIMA (PRINCIPAL)
 // ===========================================
 async function fetchClima(city) { 
     const climaDiv = document.getElementById('clima-data');
@@ -130,42 +215,43 @@ async function fetchClima(city) {
             return;
         }
 
-        // 1. ESTRUTURA HTML FINAL
+        // 1. ESTRUTURA HTML FINAL COM SELETOR DE DIAS
         climaDiv.innerHTML = `
-            <div class="weather-current-details">
-                <img src="http://openweathermap.org/img/wn/${data.icone}@4x.png" alt="Ícone do Clima" class="weather-icon">
-                <div>
-                    <p class="current-temp">${Math.round(data.temperatura)}°C</p>
-                    <p class="current-desc">${data.descricao.charAt(0).toUpperCase() + data.descricao.slice(1)}, ${data.cidade}</p>
-                    <p class="current-location">${data.cidade}, ${data.pais}</p>
+            <div id="current-main-details" class="weather-current-details">
                 </div>
-            </div>
 
-            <h4 class="forecast-title">PREVISÃO 7 DIAS</h4>
+            <h4 class="forecast-title">PREVISÃO PRÓXIMAS HORAS</h4>
             <div class="forecast-chart-wrap"> 
                 <canvas id="forecast-chart-canvas"></canvas>
             </div>
             
+            <h4 class="forecast-title" style="margin-top: 1.5rem; padding-top: 1rem;">PREVISÃO 7 DIAS</h4>
+            <div id="daily-selector-container" class="daily-selector-grid">
+                ${MOCKED_DAYS_FORECAST.map((day, index) => `
+                    <button class="day-selector-btn" data-day-index="${index}" data-temp-max="${day.high}" data-temp-min="${day.low}" data-day="${day.day}" data-icon="${day.icon}">
+                        <span class="day-label">${day.day}</span>
+                        <img src="http://openweathermap.org/img/wn/${day.icon}.png" alt="${day.day}" class="day-icon">
+                        <span class="temp-range"><span class="temp-high">${day.high}°</span> / <span class="temp-low">${day.low}°</span></span>
+                    </button>
+                `).join('')}
+            </div>
+
             <div class="weather-stats-grid-wrap">
-                
                 <div class="stat-item-grid">
                     <p class="stat-label">Amplitude Térmica</p>
                     <span class="stat-value-highlight">
-                        <span class="stat-value-high">${Math.round(data.temperaturaMax)}°C</span> / 
-                        <span class="stat-value-low">${Math.round(data.temperaturaMin)}°C</span>
+                        <span class="stat-value-high">${MOCKED_DAYS_FORECAST[0].high}°C</span> / 
+                        <span class="stat-value-low">${MOCKED_DAYS_FORECAST[0].low}°C</span>
                     </span>
                 </div>
-                
                 <div class="stat-item-grid">
                     <p class="stat-label">Umidade</p>
                     <span class="stat-value-highlight">75%</span>
                 </div>
-                
                 <div class="stat-item-grid">
                     <p class="stat-label">Vento</p>
                     <span class="stat-value-highlight">12 km/h</span>
                 </div>
-                
                 <div class="stat-item-grid empty-stat">
                     <p class="stat-label">Pressão</p>
                     <span class="stat-value-highlight">1012 hPa</span>
@@ -173,87 +259,19 @@ async function fetchClima(city) {
             </div>
         `;
 
-        // 2. CRIAÇÃO DO GRÁFICO (Chart.js)
-        const forecastCtx = document.getElementById('forecast-chart-canvas').getContext('2d');
-        const temps = MOCKED_DAYS_FORECAST.map(d => (d.high + d.low) / 2); 
-        const highTemps = MOCKED_DAYS_FORECAST.map(d => d.high); 
-        const lowTemps = MOCKED_DAYS_FORECAST.map(d => d.low); 
-        const labels = MOCKED_DAYS_FORECAST.map(d => d.day);
-
-        const chartIcons = MOCKED_DAYS_FORECAST.map(day => {
-            if (day.icon === '01d') return iconImages.sun;
-            if (day.icon === '02d') return iconImages['cloud-sun'];
-            if (day.icon === '04d') return iconImages.clouds;
-            if (day.icon === '09d' || day.icon === '10d') return iconImages.rain;
-            return iconImages.clouds;
+        // 2. Configurar Listeners e Gráfico
+        createHourlyChart(); // Cria o gráfico de horas (no canvas)
+        
+        // Adicionar Listeners para os botões de dia
+        document.querySelectorAll('.day-selector-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const dayIndex = btn.getAttribute('data-day-index');
+                updateMainWeatherDetails(dayIndex);
+            });
         });
-
-
-        forecastChartInstance = new Chart(forecastCtx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Temperatura Média',
-                    data: temps, 
-                    borderColor: '#6366f1', 
-                    backgroundColor: 'rgba(99, 102, 241, 0.2)', 
-                    fill: 'start', 
-                    tension: 0.4, 
-                    pointRadius: 0, 
-                    borderWidth: 2
-                }, {
-                    label: 'Máxima',
-                    data: highTemps,
-                    type: 'line',
-                    borderColor: '#f87171',
-                    pointRadius: 4,
-                    pointBackgroundColor: '#f87171',
-                    borderWidth: 0,
-                    showLine: false,
-                    yAxisID: 'y'
-                }, {
-                    label: 'Mínima',
-                    data: lowTemps,
-                    type: 'line',
-                    borderColor: '#60a5fa',
-                    pointRadius: 4,
-                    pointBackgroundColor: '#60a5fa',
-                    borderWidth: 0,
-                    showLine: false,
-                    yAxisID: 'y'
-                }, {
-                    label: 'Ícones',
-                    data: highTemps.map(h => h + 1),
-                    type: 'line',
-                    borderColor: 'transparent',
-                    pointStyle: chartIcons,
-                    pointRadius: 16,
-                    showLine: false,
-                    yAxisID: 'y'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#9ca3af' }
-                    },
-                    y: {
-                        display: false, 
-                        grid: { display: false },
-                        min: Math.min(...lowTemps) - 5, 
-                        max: Math.max(...highTemps) + 5
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true }
-                }
-            }
-        });
+        
+        // Simular o clique no dia atual (índice 0) para carregar os detalhes iniciais no topo
+        document.querySelector('.day-selector-btn')?.click();
 
     } catch (error) {
         climaDiv.innerHTML = `<p class="text-red-400">Falha na comunicação total com o servidor.</p>`;
