@@ -3,197 +3,240 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clima & Cotação - Portfólio (Netlify Functions)</title>
+    <title>Clima & Cotação - Portfólio (Serverless)</title>
     
+    <script src="https://cdn.tailwindcss.com"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+
     <style>
-        /* --- ESTILOS CSS - TEMA ESCURO --- */
+        /* Estilos customizados para TEMA CLARO */
         body {
+            /* Fundo claro principal */
+            background-color: #f8f9fa; 
+            color: #212529; /* Texto escuro */
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            background-color: #1a1a2e; /* Fundo escuro principal */
-            color: #e0e0e0; /* Texto claro */
-            line-height: 1.6;
+            min-height: 100vh;
         }
 
-        .header {
-            background-color: #0f0f1b;
-            padding: 20px;
-            text-align: center;
-            border-bottom: 1px solid #333;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            color: #92a8d1;
-            margin: 0;
-            font-size: 2.5em;
-        }
-
-        .header p {
-            color: #b0b0b0;
-            font-size: 1.1em;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            gap: 25px;
-            flex-wrap: wrap;
-            padding: 0 20px;
-        }
+        /* Classes de variação para o tema claro */
+        .up-text { color: #155724; } 
+        .down-text { color: #721c24; }
+        .up-bg { background-color: #d4edda; } 
+        .down-bg { background-color: #f8d7da; } 
         
-        .card {
-            background-color: #2a2a4a; /* Fundo dos cards */
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-            flex: 1 1 300px;
-            min-height: 250px;
-            display: flex;
-            flex-direction: column;
+        .weather-icon {
+            width: 80px; 
+            height: 80px;
         }
 
-        h2 {
-            color: #92a8d1;
-            border-bottom: 1px solid #444;
-            padding-bottom: 12px;
-            margin-top: 0;
-            font-size: 1.8em;
+        /* Estilo para a barra de scroll */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
-        
-        #clima-data h3 {
-            color: #c0c0c0;
-            margin-bottom: 5px;
-            font-size: 1.5em;
-        }
-
-        #clima-data p {
-            margin: 8px 0;
-            font-size: 1.1em;
-        }
-
-        .error { color: #dc3545; font-style: italic; }
-        
-        .cotacao-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            padding: 8px 0;
-            border-bottom: 1px dashed #444;
-            font-size: 1.1em;
-        }
-
-        .cotacao-item:last-child {
-            border-bottom: none;
-        }
-
-        .cotacao-item span:first-child {
-            font-weight: normal;
-            color: #b0b0b0;
-        }
-
-        .variacao {
-            font-weight: bold;
-            font-size: 0.9em;
-            padding: 3px 6px;
+        ::-webkit-scrollbar-thumb {
+            background-color: #adb5bd;
             border-radius: 4px;
-        }
-        .up { color: #28a745; background-color: rgba(40, 167, 69, 0.1); }
-        .down { color: #dc3545; background-color: rgba(220, 53, 69, 0.1); }
-        
-        #clima-data img {
-            vertical-align: middle;
-            margin-left: 5px;
-            width: 40px;
-            height: 40px;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-                align-items: center;
-            }
-            .card {
-                width: 90%;
-                min-width: unset;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🌍 Clima & Cotação (Portfólio)</h1>
-        <p>Dados obtidos com segurança via Netlify Functions (Serverless Back-end).</p>
-    </div>
+    
+    <header class="bg-white p-8 text-center shadow-lg border-b border-gray-200">
+        <h1 class="text-5xl font-extrabold text-blue-600 tracking-wider">🌍 Clima & Cotação</h1>
+        <p class="text-gray-600 mt-3 text-lg font-light">Seu projeto de portfólio. Dados via Netlify Functions.</p>
+    </header>
 
-    <div class="container">
-        <div id="clima-card" class="card">
-            <h2>☁️ Clima Atual (Curitiba)</h2>
-            <div id="clima-data">Carregando dados do clima...</div>
+    <main class="container mx-auto p-4 md:p-8">
+        
+        <div class="max-w-xl mx-auto mb-10">
+            <div class="flex gap-3 bg-white p-3 rounded-xl shadow-xl border border-gray-200">
+                <input 
+                    type="text" 
+                    id="city-input" 
+                    placeholder="Buscar cidade (Ex: Rio de Janeiro)" 
+                    class="flex-1 p-3 rounded-lg bg-gray-100 text-gray-800 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
+                >
+                <button 
+                    id="search-button" 
+                    class="px-5 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    Buscar
+                </button>
+            </div>
         </div>
 
-        <div id="cotacao-card" class="card">
-            <h2>📈 Cotações ao Vivo</h2>
-            <div id="cotacao-data">Carregando dados de cotação...</div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div id="clima-card" class="lg:col-span-2 bg-white p-8 rounded-3xl shadow-2xl border border-gray-200 flex flex-col transition duration-300 hover:shadow-blue-300/50">
+                <h2 class="text-3xl font-bold text-blue-600 pb-3 border-b border-gray-300 mb-4">☁️ Detalhes do Clima</h2>
+                <div id="clima-data" class="flex-grow">
+                    <p class="text-gray-500">Use a busca acima ou aguarde o carregamento inicial...</p>
+                </div>
+            </div>
+
+            <div id="cotacao-card" class="lg:col-span-1 bg-white p-8 rounded-3xl shadow-2xl border border-gray-200 flex flex-col transition duration-300 hover:shadow-blue-300/50">
+                <h2 class="text-3xl font-bold text-blue-600 pb-3 border-b border-gray-300 mb-4">📈 Cotações ao Vivo</h2>
+                <div id="cotacao-data" class="space-y-4 flex-grow">
+                    <p class="text-gray-500">Carregando dados de cotação...</p>
+                </div>
+            </div>
+
         </div>
-    </div>
+    </main>
 
     <script>
-        // Função principal que executa a busca de dados
+        // Variável global para gerenciar a instância do gráfico
+        let tempChartInstance = null; 
+        
+        // --- NOVAS VARIÁVEIS PARA ÍCONES (Simulação) ---
+        const iconImages = {};
+        const iconUrls = [
+            // Ícones de exemplo do OWM
+            { name: 'sun', url: 'http://openweathermap.org/img/wn/01d.png' },
+            { name: 'clouds', url: 'http://openweathermap.org/img/wn/04d.png' },
+            { name: 'rain', url: 'http://openweathermap.org/img/wn/10d.png' }
+        ];
+
+        // Pré-carrega as imagens para usar como pointStyle no Chart.js
+        function loadIcons() {
+            iconUrls.forEach(item => {
+                const img = new Image();
+                img.src = item.url;
+                img.width = 32;
+                img.height = 32;
+                iconImages[item.name] = img;
+            });
+        }
+        
         document.addEventListener('DOMContentLoaded', () => {
-            fetchClima();
+            loadIcons(); // Carrega as imagens dos ícones primeiro
+            fetchClima('Curitiba'); // Chamada inicial
             fetchCotacao();
+
+            const searchButton = document.getElementById('search-button');
+            const cityInput = document.getElementById('city-input');
+
+            searchButton.addEventListener('click', () => {
+                const cityName = cityInput.value.trim(); 
+                if (cityName) {
+                    fetchClima(cityName);
+                } else {
+                    alert('Por favor, digite o nome de uma cidade.');
+                }
+            });
+
+            cityInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    searchButton.click();
+                }
+            });
         });
 
         // ===========================================
-        // FUNÇÃO DE CLIMA (Consumindo /getClima)
+        // FUNÇÃO DE CLIMA (Com Gráfico e Layout Detalhado)
         // ===========================================
-        async function fetchClima() {
+        async function fetchClima(city) { 
             const climaDiv = document.getElementById('clima-data');
-            // Chamada à Netlify Function (seu Back-end)
-            const url = '/.netlify/functions/getClima?city=Curitiba'; 
+            climaDiv.innerHTML = '<p class="text-center text-blue-600">Buscando dados para ' + city + '...</p>';
+
+            if (tempChartInstance) {
+                tempChartInstance.destroy();
+            }
+
+            const url = `/.netlify/functions/getClima?city=${encodeURIComponent(city)}`; 
 
             try {
                 const response = await fetch(url);
-                // Verifica se a resposta HTTP é OK antes de tentar o JSON
+                
                 if (!response.ok) {
-                    climaDiv.innerHTML = `<p class="error">Erro de rede (${response.status}) ao buscar a função.</p>`;
+                    climaDiv.innerHTML = `<p class="text-red-700">Erro de rede (${response.status}) ao buscar a função.</p>`;
                     return;
                 }
                 
                 const data = await response.json();
 
                 if (data.error) {
-                    // SE O BACK-END RETORNAR UM ERRO (CHAVE INVÁLIDA)
-                    climaDiv.innerHTML = `<p class="error">
-                        🚨 Erro de API: ${data.error}<br>
-                        O problema persiste na chave do OpenWeatherMap.
+                    climaDiv.innerHTML = `<p class="text-red-700 font-semibold mt-4">
+                        🚨 Erro de API para ${city}: ${data.error}<br>
+                        Verifique o nome da cidade ou a chave do OpenWeatherMap.
                     </p>`;
                     return;
                 }
 
-                // Renderiza os dados de sucesso
-                const html = `
-                    <h3>${data.cidade}, ${data.pais}</h3>
-                    <p>Temperatura: <strong>${data.temperatura}°C</strong></p>
-                    <p>Condição: ${data.descricao} <img src="http://openweathermap.org/img/wn/${data.icone}.png" alt="Ícone do Clima"></p>
-                    <p>Mínima: ${data.temperaturaMin}°C | Máxima: ${data.temperaturaMax}°C</p>
+                // 1. ESTRUTURA HTML DETALHADA
+                climaDiv.innerHTML = `
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h3 class="text-4xl font-bold text-gray-900">${data.cidade}, ${data.pais}</h3>
+                            <p class="text-lg text-gray-600 mt-1">${data.descricao.charAt(0).toUpperCase() + data.descricao.slice(1)}</p>
+                            <p class="text-6xl font-extrabold text-blue-600 mt-2">${Math.round(data.temperatura)}°C</p>
+                        </div>
+                        <div>
+                            <img src="http://openweathermap.org/img/wn/${data.icone}@4x.png" alt="Ícone do Clima" class="weather-icon mx-auto">
+                        </div>
+                    </div>
+
+                    <h4 class="text-xl font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-4">Previsão de 5 Horas (Simulado)</h4>
+                    <div class="h-40 mb-6 bg-gray-100 p-2 rounded-lg border border-gray-300"> 
+                        <canvas id="temperatura-chart"></canvas>
+                    </div>
+                    
+                    <h4 class="text-xl font-semibold text-gray-700 pb-2 border-b border-gray-300 mb-4 mt-6">Detalhes do Dia</h4>
+                    <div id="clima-detalhes" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Mínima</p><p class="text-lg font-semibold">${Math.round(data.temperaturaMin)}°C</p></div>
+                        <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Máxima</p><p class="text-lg font-semibold">${Math.round(data.temperaturaMax)}°C</p></div>
+                        <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Umidade</p><p class="text-lg font-semibold">75%</p></div> 
+                        <div class="bg-gray-100 p-3 rounded-lg hover:bg-gray-200 transition duration-150"><p class="text-gray-500 text-sm">Vento</p><p class="text-lg font-semibold">12 km/h</p></div> 
+                    </div>
                 `;
-                climaDiv.innerHTML = html;
+                
+                // 2. CRIAÇÃO DO GRÁFICO (Dados Simulados com Ícones)
+                const ctx = document.getElementById('temperatura-chart').getContext('2d');
+                tempChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Agora', '1h', '2h', '3h', '4h'], 
+                        datasets: [{
+                            label: 'Temperatura (°C)',
+                            data: [data.temperatura, data.temperatura + 2, data.temperatura - 1, data.temperatura + 3, data.temperatura], 
+                            borderColor: '#3b82f6', 
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)', 
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#fff',
+                            // === CONFIGURAÇÃO AVANÇADA DE ÍCONES ===
+                            pointStyle: [
+                                iconImages.sun,        
+                                iconImages.clouds,     
+                                iconImages.rain,       
+                                iconImages.sun,        
+                                iconImages.clouds      
+                            ], 
+                            pointRadius: 16, 
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false, 
+                        scales: {
+                            x: { ticks: { color: '#6b7280' }, grid: { display: false } },
+                            y: { display: false, grid: { display: false } },
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: false }
+                        }
+                    }
+                });
 
             } catch (error) {
-                // SE HOUVER UM ERRO DE REDE/CONEXÃO TOTAL
-                climaDiv.innerHTML = `<p class="error">
-                    Falha na comunicação total com o servidor. Verifique se o 'netlify dev' está rodando.
-                </p>`;
+                climaDiv.innerHTML = `<p class="text-red-700">Falha na comunicação total com o servidor.</p>`;
                 console.error('Erro ao buscar clima:', error);
             }
         }
 
         // ===========================================
-        // FUNÇÃO DE COTAÇÃO (Consumindo /getCotacao)
+        // FUNÇÃO DE COTAÇÃO (Final)
         // ===========================================
         async function fetchCotacao() {
             const cotacaoDiv = document.getElementById('cotacao-data');
@@ -202,33 +245,33 @@
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
-                    cotacaoDiv.innerHTML = `<p class="error">Erro de rede (${response.status}) ao buscar a função.</p>`;
+                    cotacaoDiv.innerHTML = `<p class="text-red-700">Erro de rede (${response.status}) ao buscar a função.</p>`;
                     return;
                 }
 
                 const cotacoes = await response.json();
 
                 if (cotacoes.error) {
-                    cotacaoDiv.innerHTML = `<p class="error">Erro ao buscar cotações: ${cotacoes.error}</p>`;
+                    cotacaoDiv.innerHTML = `<p class="text-red-700">Erro ao buscar cotações: ${cotacoes.error}</p>`;
                     return;
                 }
 
                 let html = '';
                 for (const key in cotacoes) {
                     const item = cotacoes[key];
-                    if (!item || item.valor === undefined) continue; // Pula se o dado estiver incompleto
+                    if (!item || item.valor === undefined) continue;
                     
                     const nome = key.toUpperCase();
                     
-                    const variacaoClass = item.variacao > 0 ? 'up' : (item.variacao < 0 ? 'down' : '');
+                    const variacaoClass = item.variacao > 0 ? 'up-text up-bg' : (item.variacao < 0 ? 'down-text down-bg' : 'text-gray-600');
                     const simbolo = item.variacao > 0 ? '▲' : (item.variacao < 0 ? '▼' : '—');
                     
                     html += `
-                        <div class="cotacao-item">
-                            <span>${nome} (BRL)</span>
-                            <span>
+                        <div class="flex justify-between items-center pb-3 border-b border-gray-300 last:border-b-0">
+                            <span class="text-gray-700 font-medium">${nome} (BRL)</span>
+                            <span class="flex items-center gap-2 font-bold text-gray-900">
                                 R$ ${item.valor}
-                                <span class="variacao ${variacaoClass}">
+                                <span class="text-sm font-semibold ${variacaoClass} p-1 rounded">
                                     ${simbolo} ${item.variacao}%
                                 </span>
                             </span>
@@ -239,7 +282,7 @@
                 cotacaoDiv.innerHTML = html;
 
             } catch (error) {
-                cotacaoDiv.innerHTML = `<p class="error">Falha na conexão com o servidor de cotação.</p>`;
+                cotacaoDiv.innerHTML = `<p class="text-red-700">Falha na conexão com o servidor de cotação.</p>`;
                 console.error('Erro ao buscar cotação:', error);
             }
         }
