@@ -1,37 +1,49 @@
 // netlify/functions/getClima.js
 const axios = require('axios');
-const API_KEY = process.env.WEATHERAPI_API_KEY; 
+// --- CORREÇÃO FINAL: Usando CLIMA_API_KEY ---
+const API_KEY = process.env.CLIMA_API_KEY; 
 
 // --- MAPA DE TRADUÇÃO DE ÍCONES (WeatherAPI Code -> OpenWeatherMap Code) ---
+// Mapeia códigos da WeatherAPI para códigos que o seu frontend (usando URLs do OWM) entende.
 const ICON_MAP = {
-    1000: { day: '01d', night: '01n' }, // Clear
-    1003: { day: '02d', night: '02n' }, // Partly cloudy
-    1006: { day: '03d', night: '03n' }, // Cloudy
-    1009: { day: '04d', night: '04n' }, // Overcast
-    1030: { day: '50d', night: '50n' }, // Mist
-    1135: { day: '50d', night: '50n' }, // Fog
-    1147: { day: '50d', night: '50n' }, // Freezing fog
-    1063: { day: '09d', night: '09n' }, // Patchy rain possible
-    1150: { day: '09d', night: '09n' }, // Light drizzle
-    1153: { day: '09d', night: '09n' }, // Drizzle
-    1180: { day: '09d', night: '09n' }, // Patchy light rain
-    1183: { day: '10d', night: '10n' }, // Light rain
-    1186: { day: '10d', night: '10n' }, // Moderate rain at times
-    1189: { day: '10d', night: '10n' }, // Moderate rain
-    1192: { day: '10d', night: '10n' }, // Heavy rain at times
-    1195: { day: '10d', night: '10n' }, // Heavy rain
-    1087: { day: '11d', night: '11n' }, // Thundery outbreaks possible
-    1273: { day: '11d', night: '11n' }, // Patchy light rain with thunder
-    1276: { day: '11d', night: '11n' }, // Moderate or heavy rain with thunder
-    1210: { day: '13d', night: '13n' }, // Light snow
-    1237: { day: '13d', night: '13n' }, // Ice pellets
+    // Céu Limpo
+    1000: { day: '01d', night: '01n' }, 
+    // Nublado
+    1003: { day: '02d', night: '02n' }, 
+    1006: { day: '03d', night: '03n' }, 
+    1009: { day: '04d', night: '04n' }, 
+    // Nevoeiro
+    1030: { day: '50d', night: '50n' }, 
+    1135: { day: '50d', night: '50n' }, 
+    1147: { day: '50d', night: '50n' }, 
+    // Chuva Fraca/Leve
+    1063: { day: '09d', night: '09n' }, 
+    1150: { day: '09d', night: '09n' }, 
+    1153: { day: '09d', night: '09n' }, 
+    1180: { day: '09d', night: '09n' }, 
+    // Chuva Moderada/Forte
+    1183: { day: '10d', night: '10n' }, 
+    1186: { day: '10d', night: '10n' }, 
+    1189: { day: '10d', night: '10n' }, 
+    1192: { day: '10d', night: '10n' }, 
+    1195: { day: '10d', night: '10n' }, 
+    // Trovoadas
+    1087: { day: '11d', night: '11n' }, 
+    1273: { day: '11d', night: '11n' }, 
+    1276: { day: '11d', night: '11n' }, 
+    // Neve, Granizo, etc.
+    1210: { day: '13d', night: '13n' }, 
+    1237: { day: '13d', night: '13n' }, 
 };
 
+// Função auxiliar para obter o código do ícone OWM
 function getOwmIconCode(isDay, conditionCode) {
     const map = ICON_MAP[conditionCode];
     if (map) {
+        // isDay: 1 = dia, 0 = noite
         return isDay === 1 ? map.day : map.night;
     }
+    // Fallback padrão: nublado
     return isDay === 1 ? '04d' : '04n'; 
 }
 
@@ -46,6 +58,7 @@ exports.handler = async (event, context) => {
         };
     }
 
+    // URL da WeatherAPI
     const url = `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(city)}&days=7&lang=${lang}`;
 
     try {
@@ -63,7 +76,7 @@ exports.handler = async (event, context) => {
         const dailyForecast = data.forecast.forecastday.slice(0, 7).map(day => {
             const date = new Date(day.date);
             const conditionCode = day.day.condition.code;
-            const owmIconCode = getOwmIconCode(1, conditionCode); 
+            const owmIconCode = getOwmIconCode(1, conditionCode); // Sempre usa o ícone diurno para a previsão do dia
 
             return {
                 day: date.toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3), 
@@ -73,7 +86,7 @@ exports.handler = async (event, context) => {
             };
         });
 
-        // --- MAPEAMENTO DA PREVISÃO HORÁRIA (PRÓXIMAS HORAS) ---
+        // --- MAPEAMENTO DA PREVISÃO HORÁRIA (PRÓXIMAS 7 HORAS) ---
         const nowHour = new Date().getHours();
         let hourlyForecast = [];
         const rawHourly = currentDayForecast.hour;
@@ -87,7 +100,7 @@ exports.handler = async (event, context) => {
             const owmIconCode = getOwmIconCode(hourIsDay, hourConditionCode);
 
             hourlyForecast.push({
-                label: `${hourData.time.split(' ')[1].split(':')[0]}h`, 
+                label: `${hourData.time.split(' ')[1].split(':')[0]}h`, // Ex: "18:00" -> "18h"
                 temp: Math.round(hourData.temp_c),
                 icon: owmIconCode 
             });
@@ -101,7 +114,7 @@ exports.handler = async (event, context) => {
                 cidade: data.location.name,
                 pais: data.location.country,
                 
-                // CAMPO CRÍTICO: temp_atual
+                // DADOS CRÍTICOS (TEMPO REAL)
                 temp_atual: Math.round(current.temp_c), 
                 descricao_atual: current.condition.text,
                 icone_atual: getOwmIconCode(isDay, currentConditionCode), 
@@ -116,10 +129,9 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        // Bloco de tratamento de erro
+        // Bloco de tratamento de erro para cair no MOCK do frontend
         console.error('Erro na função Netlify:', error.message);
         if (error.response) {
-            // Se a API retornar um erro (ex: chave inválida, cidade não encontrada)
             console.error('Dados de erro da API:', error.response.data);
             return {
                 statusCode: error.response.status,
@@ -129,7 +141,6 @@ exports.handler = async (event, context) => {
                 })
             };
         }
-        // Erro de rede ou outro problema de conexão
         return {
             statusCode: 500,
             body: JSON.stringify({ error: "Falha geral ao buscar dados de clima.", details: error.message })
