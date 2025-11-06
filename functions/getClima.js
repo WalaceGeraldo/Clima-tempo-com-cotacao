@@ -1,10 +1,9 @@
 // netlify/functions/getClima.js
 const axios = require('axios');
-// --- CORREÇÃO FINAL: Usando CLIMA_API_KEY ---
-const API_KEY = process.env.CLIMA_API_KEY; 
+// A API_KEY é lida da variável de ambiente (WEATHERAPI_API_KEY no .env e no painel Netlify)
+const API_KEY = process.env.WEATHERAPI_API_KEY; 
 
 // --- MAPA DE TRADUÇÃO DE ÍCONES (WeatherAPI Code -> OpenWeatherMap Code) ---
-// Mapeia códigos da WeatherAPI para códigos que o seu frontend (usando URLs do OWM) entende.
 const ICON_MAP = {
     // Céu Limpo
     1000: { day: '01d', night: '01n' }, 
@@ -36,20 +35,25 @@ const ICON_MAP = {
     1237: { day: '13d', night: '13n' }, 
 };
 
-// Função auxiliar para obter o código do ícone OWM
 function getOwmIconCode(isDay, conditionCode) {
     const map = ICON_MAP[conditionCode];
     if (map) {
-        // isDay: 1 = dia, 0 = noite
         return isDay === 1 ? map.day : map.night;
     }
-    // Fallback padrão: nublado
     return isDay === 1 ? '04d' : '04n'; 
 }
 
 
 exports.handler = async (event, context) => {
     const { city, lang = 'pt' } = event.queryStringParameters;
+
+    if (!API_KEY) {
+         console.error('WEATHERAPI_API_KEY não está configurada! Retornando erro 500.');
+         return {
+            statusCode: 500,
+            body: JSON.stringify({ error: "Erro de configuração: Chave da API não configurada. Use WEATHERAPI_API_KEY." })
+        };
+    }
 
     if (!city) {
         return {
@@ -58,25 +62,25 @@ exports.handler = async (event, context) => {
         };
     }
 
-    // URL da WeatherAPI
+    // Chamada à API WeatherAPI
     const url = `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${encodeURIComponent(city)}&days=7&lang=${lang}`;
 
     try {
         const response = await axios.get(url);
         const data = response.data;
         
-        // --- EXTRAÇÃO DE DADOS ATUAIS (TEMPO REAL) ---
+        // --- EXTRAÇÃO E MAPEAMENTO ---
         const current = data.current;
         const currentDayForecast = data.forecast.forecastday[0]; 
         
         const isDay = current.is_day;
         const currentConditionCode = current.condition.code;
         
-        // --- MAPEAMENTO DA PREVISÃO DIÁRIA (7 DIAS) ---
+        // Mapeamento da previsão diária
         const dailyForecast = data.forecast.forecastday.slice(0, 7).map(day => {
             const date = new Date(day.date);
             const conditionCode = day.day.condition.code;
-            const owmIconCode = getOwmIconCode(1, conditionCode); // Sempre usa o ícone diurno para a previsão do dia
+            const owmIconCode = getOwmIconCode(1, conditionCode); 
 
             return {
                 day: date.toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3), 
@@ -86,7 +90,7 @@ exports.handler = async (event, context) => {
             };
         });
 
-        // --- MAPEAMENTO DA PREVISÃO HORÁRIA (PRÓXIMAS 7 HORAS) ---
+        // Mapeamento da previsão horária
         const nowHour = new Date().getHours();
         let hourlyForecast = [];
         const rawHourly = currentDayForecast.hour;
@@ -100,50 +104,44 @@ exports.handler = async (event, context) => {
             const owmIconCode = getOwmIconCode(hourIsDay, hourConditionCode);
 
             hourlyForecast.push({
-                label: `${hourData.time.split(' ')[1].split(':')[0]}h`, // Ex: "18:00" -> "18h"
+                label: `${hourData.time.split(' ')[1].split(':')[0]}h`, 
                 temp: Math.round(hourData.temp_c),
                 icon: owmIconCode 
             });
         }
 
-
-        // --- RETORNAR OS DADOS ESTRUTURADOS PARA O FRONTEND ---
+        // --- RETORNAR DADOS AO FRONTEND ---
         return {
-            statusCode: 200,
+            statusCode: 200, 
             body: JSON.stringify({
                 cidade: data.location.name,
                 pais: data.location.country,
-                
-                // DADOS CRÍTICOS (TEMPO REAL)
                 temp_atual: Math.round(current.temp_c), 
                 descricao_atual: current.condition.text,
                 icone_atual: getOwmIconCode(isDay, currentConditionCode), 
                 umidade: current.humidity,
-                vento: Math.round(current.wind_kph), 
+                vento: Math.round(current.wind_kph), // Vento já está em km/h
                 pressao: current.pressure_mb, 
-                
-                // PREVISÃO
                 hourlyForecast: hourlyForecast,
                 dailyForecast: dailyForecast,
             })
         };
 
     } catch (error) {
-        // Bloco de tratamento de erro para cair no MOCK do frontend
-        console.error('Erro na função Netlify:', error.message);
-        if (error.response) {
-            console.error('Dados de erro da API:', error.response.data);
-            return {
-                statusCode: error.response.status,
-                body: JSON.stringify({ 
-                    error: `Erro de API WeatherAPI (${error.response.status}): ${error.response.data.error.message}`, 
-                    details: error.message 
-                })
-            };
+        // Bloco de tratamento de erro para evitar erro 500 genérico
+        let statusCode = (error.response && error.response.status) ? error.response.status : 500;
+        let errorMessage = `Erro na API. Verifique a chave WeatherAPI: ${error.message}`;
+        
+        // Tenta obter a mensagem clara da API para o frontend
+        if (error.response && error.response.data && error.response.data.error && error.response.data.error.message) {
+            errorMessage = error.response.data.error.message;
         }
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: "Falha geral ao buscar dados de clima.", details: error.message })
+
+        console.error('Erro na função Netlify (WeatherAPI):', errorMessage);
+
+        return { 
+            statusCode: statusCode, 
+            body: JSON.stringify({ error: `Falha na API: ${errorMessage}` })
         };
     }
 };
