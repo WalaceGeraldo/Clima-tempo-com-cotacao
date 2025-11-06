@@ -8,8 +8,8 @@
 }
 
 body {
-    background-color: #0c141b; /* Fundo principal escuro (sua configuração) */
-    color: #f3f4f6; /* Texto principal branco/claro */
+    background-color: #0c141b; 
+    color: #f3f4f6; 
     font-family: 'Inter', sans-serif;
     min-height: 100vh;
 }
@@ -28,7 +28,7 @@ a {
 
 /* === HEADER === */
 .header-main {
-    background-color: #1f2937; /* Header escuro */
+    background-color: #1f2937; 
     padding: 1rem 2rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border-bottom: 1px solid #1f2937;
@@ -49,7 +49,7 @@ a {
 }
 
 .logo-icon {
-    color: #3b82f6; /* Azul */
+    color: #3b82f6; 
     font-size: 1.8rem; 
 }
 
@@ -234,6 +234,7 @@ a {
     color: #f3f4f6;
 }
 
+/* --- LAYOUT DA SEÇÃO PRINCIPAL DE TEMPERATURA --- */
 .weather-current-details {
     display: flex;
     align-items: center;
@@ -241,13 +242,29 @@ a {
     margin-bottom: 3rem; 
 }
 
+.weather-info-main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.current-location-name {
+    font-size: 2.25rem; 
+    font-weight: 600;
+    color: #f3f4f6; 
+    margin-bottom: 0.1rem; 
+}
+
 .current-temp {
     font-size: 3rem; 
     font-weight: 800; 
     color: white; 
+    line-height: 1;
 }
+
 .current-desc {
-    font-size: 1.125rem; 
+    font-size: 0.9rem; 
     color: #9ca3af; 
     margin-top: 0.25rem;
 }
@@ -255,6 +272,7 @@ a {
     font-size: 0.875rem; 
     color: #6b7280; 
 }
+
 
 .forecast-title {
     font-size: 0.875rem; 

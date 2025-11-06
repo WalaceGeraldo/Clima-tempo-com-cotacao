@@ -69,6 +69,9 @@ function loadIcons() {
     }));
 }
 
+// --- VARIÁVEIS GLOBAIS DE LOCALIZAÇÃO ---
+let currentCityName = '';
+let currentCountry = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Inicia o Front-end exibindo os loaders
@@ -86,7 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadIcons(); 
     
     // 2. Inicia a busca de dados
-    fetchClima('rio de janeiro'); 
+    fetchClima('Rio de Janeiro'); // Início com Rio de Janeiro
     renderMarketData(); 
     renderNewsData();
     
@@ -112,13 +115,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // --- FUNÇÃO DE CRIAÇÃO DE GRÁFICO DE HORA ---
 function createHourlyChart() {
-    // Destruir gráfico anterior se houver
     if (forecastChartInstance) {
         forecastChartInstance.destroy();
     }
     
     const canvas = document.getElementById('forecast-chart-canvas');
-    if (!canvas) return; // Evita erro se o elemento não existir
+    if (!canvas) return; 
     const ctx = canvas.getContext('2d');
     
     const hourlyTemps = MOCKED_HOURLY_FORECAST.map(h => h.temp);
@@ -152,7 +154,7 @@ function createHourlyChart() {
             maintainAspectRatio: false,
             scales: {
                 x: { 
-                    reverse: true, // <--- AQUI: Inverte o eixo X
+                    reverse: true,
                     grid: { display: false }, 
                     ticks: { color: '#9ca3af' } 
                 },
@@ -174,19 +176,25 @@ function updateMainWeatherDetails(dayIndex) {
 
     if (!mainDetailsDiv) return;
 
+    // AQUI: Injetamos o HTML completo da seção principal
     mainDetailsDiv.innerHTML = `
         <img src="http://openweathermap.org/img/wn/${dayData.icon}@4x.png" alt="Ícone do Clima" class="weather-icon flex-shrink-0">
-        <div>
+        <div class="weather-info-main">
+            <p class="current-location-name">${currentCityName}, ${currentCountry}</p> 
             <p class="current-temp">${dayData.high}°C</p>
             <p class="current-desc">Previsão para ${dayData.day}</p>
             <p class="current-location">Máx: ${dayData.high}°C | Mín: ${dayData.low}°C</p>
         </div>
     `;
+    
+    // Atualizar destaque do dia
+    document.querySelectorAll('.day-selector-btn').forEach(b => b.classList.remove('active-day-selector'));
+    document.querySelector(`[data-day-index="${dayIndex}"]`).classList.add('active-day-selector');
 }
 
 
 // ===========================================
-// FUNÇÃO DE CLIMA (PRINCIPAL)
+// FUNÇÃO DE CLIMA (FINAL - COM NOME DO LUGAR DESTACADO)
 // ===========================================
 async function fetchClima(city) { 
     const climaDiv = document.getElementById('clima-data');
@@ -214,8 +222,13 @@ async function fetchClima(city) {
             </p>`;
             return;
         }
+        
+        // --- 1. ARMAZENAR LOCALIZAÇÃO GLOBALMENTE ---
+        currentCityName = data.cidade || city;
+        currentCountry = data.pais || 'BR';
 
-        // 1. ESTRUTURA HTML FINAL COM SELETOR DE DIAS
+
+        // 2. ESTRUTURA HTML FINAL (Contêineres de Injeção)
         climaDiv.innerHTML = `
             <div id="current-main-details" class="weather-current-details">
                 </div>
@@ -259,10 +272,9 @@ async function fetchClima(city) {
             </div>
         `;
 
-        // 2. Configurar Listeners e Gráfico
-        createHourlyChart(); // Cria o gráfico de horas (no canvas)
+        // 3. Configurar Listeners e Gráfico
+        createHourlyChart(); 
         
-        // Adicionar Listeners para os botões de dia
         document.querySelectorAll('.day-selector-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const dayIndex = btn.getAttribute('data-day-index');
