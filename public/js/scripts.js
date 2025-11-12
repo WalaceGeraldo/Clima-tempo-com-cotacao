@@ -2,15 +2,16 @@
 
 let forecastChartInstance = null; 
 let marketChartInstance = null;
+let marketHistoryData = {}; // Variável global para armazenar histórico de mercado
 
-// --- DADOS MOCKADOS (APENAS MERCADO E NOTÍCIAS) ---
+// --- DADOS MOCKADOS FINAIS (Usados como Fallback) ---
 const MOCKED_MARKET_DATA = [
     { pair: "IBOV", price: "128.500", change: 0.17, volume: "105.4M" }, 
+    { pair: "EUR/USD", price: "1.0095", change: -0.32, volume: "1.2M" },
+    { pair: "XRP/BRL", price: "4.32", change: 0.85, volume: "2.1M" },
     { pair: "PETR4", price: "30.50", change: 0.50, volume: "65.1M" }, 
     { pair: "VALE3", price: "64.62", change: -1.12, volume: "42.0M" },
     { pair: "ITUB4", price: "30.96", change: -0.30, volume: "39.7M" },
-    { pair: "EUR/USD", price: "1.0095", change: -0.32, volume: "1.2M" },
-    { pair: "XRP/BRL", price: "4.32", change: 0.85, volume: "2.1M" } 
 ];
 
 const MOCKED_NEWS_DATA = [
@@ -49,7 +50,8 @@ function loadIcons() {
 // --- VARIÁVEIS GLOBAIS DE LOCALIZAÇÃO E DADOS ---
 let currentCityName = '';
 let currentCountry = '';
-let currentForecastData = {}; // Armazena dados reais (ou mockados) da API
+let currentForecastData = {}; 
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Inicia o Front-end exibindo os loaders
@@ -66,8 +68,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     await loadIcons(); 
     
-    // 2. Inicia a busca de dados
-    fetchClima('Rio de Janeiro, BR'); 
+    // 2. Tenta Auto-Detecção de Localização
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                // Sucesso: Chama fetchClima com as coordenadas
+                fetchClima({ 
+                    lat: position.coords.latitude, 
+                    lon: position.coords.longitude 
+                });
+            },
+            (error) => {
+                // Falha ou Usuário Negou: Chama a busca padrão
+                console.warn('Geolocalização negada ou falhou. Carregando local padrão: Rio de Janeiro.');
+                fetchClima('Rio de Janeiro, BR'); 
+            },
+            { timeout: 5000 } // Tempo limite de 5 segundos
+        );
+    } else {
+        // Navegador não suporta Geolocalização: Chama a busca padrão
+        fetchClima('Rio de Janeiro, BR');
+    }
+    
     renderMarketData(); 
     renderNewsData();
     
@@ -147,7 +169,6 @@ function createHourlyChart(hourlyForecast) {
 }
 
 // --- FUNÇÃO PRINCIPAL DE ATUALIZAÇÃO DO CLIMA AO CLICAR NO DIA ---
-// CORRIGIDA: Mantém a temperatura em tempo real no topo, atualizando apenas Mín/Máx e o dia.
 function updateMainWeatherDetails(dayIndex) {
     const dayData = currentForecastData.dailyForecast[dayIndex];
     
@@ -178,38 +199,50 @@ function updateMainWeatherDetails(dayIndex) {
 
 
 // ===========================================
-// FUNÇÃO DE CLIMA (GARANTE QUE A TEMPERATURA ATUAL SEJA ATUALIZADA)
+// FUNÇÃO DE CLIMA (SUPORTE A COORDENADAS E BUSCA MANUAL)
 // ===========================================
-async function fetchClima(city) { 
+async function fetchClima(query) { 
     const climaDiv = document.getElementById('clima-data');
 
     if (forecastChartInstance) {
         forecastChartInstance.destroy();
     }
-    
+
     // --- DADOS MOCKADOS DE FALLBACK (PARA CASO DE ERRO NA API) ---
     const FALLBACK_MOCKED_HOURLY_FORECAST = [
-        { label: '14h', temp: 25, icon: '01d' },
-        { label: '15h', temp: 22, icon: '02d' },
-        { label: '16h', temp: 24, icon: '04d' },
-        { label: '17h', temp: 23, icon: '01d' },
-        { label: '18h', temp: 21, icon: '03d' },
-        { label: '19h', temp: 19, icon: '09d' },
+        { label: '14h', temp: 25, icon: '01d' }, { label: '15h', temp: 22, icon: '02d' }, 
+        { label: '16h', temp: 24, icon: '04d' }, { label: '17h', temp: 23, icon: '01d' }, 
+        { label: '18h', temp: 21, icon: '03d' }, { label: '19h', temp: 19, icon: '09d' },
     ];
     const diaAtual = new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3);
     const FALLBACK_MOCKED_DAILY_FORECAST = [
-        { day: diaAtual, icon: '01d', high: 36, low: 20 }, 
-        { day: 'Sex', icon: '02d', high: 35, low: 19 }, 
-        { day: 'Sáb', icon: '04d', high: 32, low: 18 }, 
-        { day: 'Dom', icon: '09d', high: 28, low: 15 }, 
-        { day: 'Seg', icon: '10d', high: 30, low: 17 }, 
-        { day: 'Ter', icon: '03d', high: 33, low: 21 }, 
+        { day: diaAtual, icon: '01d', high: 36, low: 20 }, { day: 'Sex', icon: '02d', high: 35, low: 19 }, 
+        { day: 'Sáb', icon: '04d', high: 32, low: 18 }, { day: 'Dom', icon: '09d', high: 28, low: 15 }, 
+        { day: 'Seg', icon: '10d', high: 30, low: 17 }, { day: 'Ter', icon: '03d', high: 33, low: 21 }, 
         { day: 'Qua', icon: '01d', high: 34, low: 22 }, 
     ];
     const FALLBACK_MOCKED_CURRENT = { temp_atual: 36, icone_atual: '01d', descricao_atual: 'DADOS MOCKADOS', umidade: 75, vento: 3.3, pressao: 1012 };
     // -------------------------------------------------------------
+    
+    // --- LÓGICA DE DETECÇÃO DE TIPO DE REQUISIÇÃO ---
+    let url;
+    let fallbackCity = 'Rio de Janeiro, BR';
+    
+    if (typeof query === 'object' && query.lat && query.lon) {
+        // GeoLocalização: Passa Lat/Lon para o backend
+        url = `/.netlify/functions/getClima?lat=${query.lat}&lon=${query.lon}&lang=pt`;
+        fallbackCity = `${query.lat}, ${query.lon}`; 
+    } else if (typeof query === 'string' && query.trim() !== '') {
+        // Busca Manual: Passa a cidade
+        fallbackCity = query;
+        url = `/.netlify/functions/getClima?city=${encodeURIComponent(query)}&lang=pt`; 
+    } else {
+        return; 
+    }
+    
+    // Configura o loader antes de buscar
+    climaDiv.innerHTML = `<p class="text-gray-400 mt-4">Buscando clima para ${typeof query === 'string' ? query : 'sua localização'}...</p>`;
 
-    const url = `/.netlify/functions/getClima?city=${encodeURIComponent(city)}&lang=pt`; 
 
     try {
         const response = await fetch(url);
@@ -224,25 +257,25 @@ async function fetchClima(city) {
 
         if (data.error) {
             climaDiv.innerHTML = `<p class="text-red-400 font-semibold mt-4">
-                🚨 Erro de API para ${city}: ${data.error}<br>
-                Verifique o nome da cidade ou a chave do WeatherAPI/OpenWeatherMap.
+                🚨 Erro de API: ${data.error}<br>
+                Verifique o nome da cidade ou a chave.
             </p>`;
             throw new Error(`Erro da API: ${data.error}`);
         }
         
         // --- 1. ARMAZENAR DADOS GLOBAIS REAIS ---
-        currentCityName = data.cidade || city;
+        currentCityName = data.cidade || fallbackCity;
         currentCountry = data.pais || 'BR';
         currentForecastData.hourlyForecast = data.hourlyForecast; 
         currentForecastData.dailyForecast = data.dailyForecast;
         
         // **VARIÁVEIS CHAVE PARA O DISPLAY INICIAL (DIA ATUAL E TEMP ATUAL)**
         const currentDayData = currentForecastData.dailyForecast[0];
-        const currentTemp = data.temp_atual; // Temperatura em tempo real
+        const currentTemp = data.temp_atual; 
         const currentIcon = data.icone_atual;
         const currentDesc = data.descricao_atual.toUpperCase();
         
-        // 2. ESTRUTURA HTML FINAL (Injetando dados do DIA ATUAL e TEMP ATUAL)
+        // 2. ESTRUTURA HTML FINAL
         climaDiv.innerHTML = `
             <div id="current-main-details" class="weather-current-details">
                 <img src="http://openweathermap.org/img/wn/${currentIcon}@4x.png" alt="Ícone do Clima" class="weather-icon flex-shrink-0">
@@ -265,7 +298,7 @@ async function fetchClima(city) {
                     <button class="day-selector-btn ${index === 0 ? 'active-day-selector' : ''}" data-day-index="${index}" data-temp-max="${day.high}" data-temp-min="${day.low}" data-day="${day.day}" data-icon="${day.icon}">
                         <span class="day-label">${day.day}</span>
                         <img src="http://openweathermap.org/img/wn/${day.icon}.png" alt="${day.day}" class="day-icon">
-                        <span class="temp-range"><span class="temp-high">${day.high}°</span> / <span class="temp-low">${day.low}°</span></span>
+                        <span class="temp-range"><span class="temp-high">${day.high}°C</span> / <span class="temp-low">${day.low}°C</span></span>
                     </button>
                 `).join('')}
             </div>
@@ -305,9 +338,9 @@ async function fetchClima(city) {
 
     } catch (error) {
         // --- Lógica de Fallback (Em caso de erro na API/Rede) ---
-        console.warn('Usando dados mockados devido a erro na API/Rede:', error);
+        console.warn('Usando dados mockados devido a erro:', error);
         
-        currentCityName = city;
+        currentCityName = fallbackCity;
         currentCountry = 'BR';
         currentForecastData.hourlyForecast = FALLBACK_MOCKED_HOURLY_FORECAST;
         currentForecastData.dailyForecast = FALLBACK_MOCKED_DAILY_FORECAST;
@@ -315,7 +348,7 @@ async function fetchClima(city) {
         const currentMock = FALLBACK_MOCKED_CURRENT;
         const currentDayData = currentForecastData.dailyForecast[0];
 
-        // *** CORREÇÃO APLICADA AQUI TAMBÉM NO FALLBACK ***
+        // Recarrega o HTML com o fallback (usando dados de índice 0 dos mocks para o topo)
         climaDiv.innerHTML = `
             <div id="current-main-details" class="weather-current-details">
                 <img src="http://openweathermap.org/img/wn/${currentMock.icone_atual}@4x.png" alt="Ícone do Clima" class="weather-icon flex-shrink-0">
@@ -338,7 +371,7 @@ async function fetchClima(city) {
                     <button class="day-selector-btn ${index === 0 ? 'active-day-selector' : ''}" data-day-index="${index}" data-temp-max="${day.high}" data-temp-min="${day.low}" data-day="${day.day}" data-icon="${day.icon}">
                         <span class="day-label">${day.day}</span>
                         <img src="http://openweathermap.org/img/wn/${day.icon}.png" alt="${day.day}" class="day-icon">
-                        <span class="temp-range"><span class="temp-high">${day.high}°</span> / <span class="temp-low">${day.low}°</span></span>
+                        <span class="temp-range"><span class="temp-high">${day.high}°C</span> / <span class="temp-low">${day.low}°C</span></span>
                     </button>
                 `).join('')}
             </div>
@@ -365,9 +398,7 @@ async function fetchClima(city) {
                 </div>
             </div>
         `;
-
         createHourlyChart(currentForecastData.hourlyForecast); 
-        
         document.querySelectorAll('.day-selector-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const dayIndex = btn.getAttribute('data-day-index');
@@ -377,11 +408,17 @@ async function fetchClima(city) {
     }
 }
 
+
 // ===========================================
-// FUNÇÕES DE MERCADO E NOTÍCIAS (Inalteradas)
+// FUNÇÃO PARA GERAR DADOS MOCKADOS DE MERCADO (CORRIGIDO ERRO DE REPLACE)
 // ===========================================
 function generateMockedDataForAsset(assetPair) {
-    const basePrice = parseFloat(MOCKED_MARKET_DATA.find(item => item.pair === assetPair)?.price.replace('.', '').replace(',', '.')) || 50; 
+    // CORREÇÃO: Garante que o valor exista antes de tentar usar .replace()
+    const priceItem = MOCKED_MARKET_DATA.find(item => item.pair === assetPair);
+    const priceStr = priceItem ? priceItem.price : "0.00";
+    
+    // Agora o replace é seguro, pois priceStr é sempre uma string
+    const basePrice = parseFloat(priceStr.replace('.', '').replace(',', '.')) || 50; 
     
     const dataPoints = [];
     let currentPrice = basePrice * (1 + (Math.random() * 0.02 - 0.01)); 
@@ -397,12 +434,91 @@ function generateMockedDataForAsset(assetPair) {
     };
 }
 
+
+// ===========================================
+// FUNÇÃO PARA RENDERIZAR DADOS DE MERCADO (AGORA COM API DE COTAÇÃO)
+// ===========================================
+async function renderMarketData() {
+    const marketTableDiv = document.getElementById('market-table-data');
+    let data;
+
+    try {
+        // Chama a função Serverless getCotacao para dados reais
+        const response = await fetch('/.netlify/functions/getCotacao');
+        const apiData = await response.json();
+        
+        if (apiData.error || !response.ok) {
+            console.error("Erro na API de Cotação:", apiData.error || response.statusText);
+            // Fallback para dados mockados se a API falhar
+            data = MOCKED_MARKET_DATA; 
+        } else {
+            // Usa os dados REAIS retornados da função Netlify
+            data = apiData.marketData; 
+            marketHistoryData = apiData.marketHistory;
+        }
+        
+    } catch (e) {
+        console.error("Falha ao se comunicar com o Servidor de Cotação.");
+        // Fallback total
+        data = MOCKED_MARKET_DATA; 
+    }
+
+
+    // Inicializa o gráfico do primeiro ativo (usando o primeiro da API)
+    renderAssetChart(data[0].pair); 
+    
+    // Renderizar Tabela de Dados de Mercado
+    let tableHtml = '';
+    data.forEach(item => {
+        const variacaoClass = item.change > 0 ? 'up-text' : (item.change < 0 ? 'down-text' : 'neutral-text');
+        const simbolo = item.change > 0 ? '▲' : (item.change < 0 ? '▼' : '—');
+        
+        tableHtml += `
+            <div class="market-table-row clickable-asset" data-asset="${item.pair}">
+                <span class="market-pair">${item.pair}</span>
+                <span class="market-price">${item.price}</span>
+                <span class="market-change ${variacaoClass}">${simbolo} ${Math.abs(item.change).toFixed(2)}%</span>
+                <span class="market-volume">${item.volume}</span>
+            </div>
+        `;
+    });
+    marketTableDiv.innerHTML = tableHtml;
+    
+    // Adicionar event listeners após a renderização da tabela
+    document.querySelectorAll('.clickable-asset').forEach(row => {
+        row.addEventListener('click', () => {
+            const asset = row.getAttribute('data-asset');
+            renderAssetChart(asset);
+            document.querySelectorAll('.clickable-asset').forEach(r => r.classList.remove('active-asset'));
+            row.classList.add('active-asset');
+        });
+    });
+    
+    // Define o IBOV como ativo ativo por padrão no carregamento
+    document.querySelector(`[data-asset="${data[0].pair}"]`)?.classList.add('active-asset');
+}
+
+
 function renderAssetChart(assetPair) {
     const marketChartDiv = document.getElementById('market-chart');
     marketChartDiv.innerHTML = '<canvas id="market-chart-canvas"></canvas>';
     const ctx = document.getElementById('market-chart-canvas').getContext('2d');
     
-    const assetData = generateMockedDataForAsset(assetPair);
+    // 1. Tenta usar dados históricos reais ou volta para o mock
+    let chartLabels;
+    let chartData;
+    let isRealData = false;
+
+    if (marketHistoryData[assetPair]) {
+        chartLabels = marketHistoryData[assetPair].labels;
+        chartData = marketHistoryData[assetPair].prices;
+        isRealData = true;
+    } else {
+        // Usa a função mockada apenas se não houver dados históricos reais (e para IBOV/Câmbio)
+        const mockData = generateMockedDataForAsset(assetPair);
+        chartLabels = mockData.labels;
+        chartData = mockData.data;
+    }
 
     if (marketChartInstance) {
         marketChartInstance.destroy();
@@ -411,16 +527,17 @@ function renderAssetChart(assetPair) {
     marketChartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: assetData.labels,
+            labels: chartLabels,
             datasets: [{
                 label: `Preço ${assetPair}`,
-                data: assetData.data,
-                borderColor: '#34d399', 
-                backgroundColor: 'rgba(52, 211, 153, 0.2)',
+                data: chartData,
+                // Cor: verde se for real data, amarelo se for mock
+                borderColor: isRealData ? '#34d399' : '#f59e0b', 
+                backgroundColor: isRealData ? 'rgba(52, 211, 153, 0.2)' : 'rgba(245, 158, 11, 0.2)',
                 fill: true,
                 tension: 0.4,
                 pointRadius: 4,
-                pointBackgroundColor: '#34d399',
+                pointBackgroundColor: isRealData ? '#34d399' : '#f59e0b',
                 borderWidth: 2
             }]
         },
@@ -449,62 +566,46 @@ function renderAssetChart(assetPair) {
     });
 }
 
-function renderMarketData() {
-    const marketTableDiv = document.getElementById('market-table-data');
 
-    // Inicializa o gráfico do primeiro ativo
-    renderAssetChart(MOCKED_MARKET_DATA[0].pair); 
-
-    // Renderizar Tabela de Dados de Mercado
-    let tableHtml = '';
-    MOCKED_MARKET_DATA.forEach(item => {
-        const variacaoClass = item.change > 0 ? 'up-text' : (item.change < 0 ? 'down-text' : 'neutral-text');
-        const simbolo = item.change > 0 ? '▲' : (item.change < 0 ? '▼' : '—');
-        
-        tableHtml += `
-            <div class="market-table-row clickable-asset" data-asset="${item.pair}">
-                <span class="market-pair">${item.pair}</span>
-                <span class="market-price">${item.price}</span>
-                <span class="market-change ${variacaoClass}">${simbolo} ${Math.abs(item.change).toFixed(2)}%</span>
-                <span class="market-volume">${item.volume}</span>
-            </div>
-        `;
-    });
-    marketTableDiv.innerHTML = tableHtml;
-    
-    // Adicionar event listeners após a renderização da tabela
-    document.querySelectorAll('.clickable-asset').forEach(row => {
-        row.addEventListener('click', () => {
-            const asset = row.getAttribute('data-asset');
-            renderAssetChart(asset);
-            
-            // Adicionar classe de destaque na linha clicada
-            document.querySelectorAll('.clickable-asset').forEach(r => r.classList.remove('active-asset'));
-            row.classList.add('active-asset');
-        });
-    });
-    
-    // Define o IBOV como ativo ativo por padrão no carregamento
-    document.querySelector(`[data-asset="${MOCKED_MARKET_DATA[0].pair}"]`)?.classList.add('active-asset');
-}
-
-// ===========================================
-// FUNÇÃO PARA RENDERIZAR NOTÍCIAS (MOCKADO)
-// ===========================================
 function renderNewsData() {
     const newsDataLgDiv = document.getElementById('news-data-lg');
     const newsDataSmDiv = document.getElementById('news-data-sm');
+    let newsList = MOCKED_NEWS_DATA; // Usa o mock como fallback
+
+    try {
+        // Tenta buscar notícias reais (requer a função getNews.js)
+        // O AWAIT é permitido aqui, pois DOMContentLoaded é async.
+        
+        // **Este bloco será descomentado quando você tiver certeza que o getNews.js está pronto:**
+        /*
+        const response = await fetch('/.netlify/functions/getNews');
+        const apiData = await response.json();
+
+        if (!apiData.error && response.ok && apiData.news && apiData.news.length > 0) {
+             newsList = apiData.news; 
+        } else {
+             console.warn("API de Notícias falhou ou não retornou dados.");
+        }
+        */
+
+    } catch (e) {
+        console.error("Falha ao se comunicar com o Servidor de Notícias.");
+        // Mantém o fallback
+    }
 
     let newsHtml = '';
-    MOCKED_NEWS_DATA.forEach(news => {
+    newsList.forEach(news => {
+        // Correção de segurança para links nulos
+        const imageUrl = news.imageUrl || "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS"; 
+
         newsHtml += `
-            <div class="news-item">
-                <img src="https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" alt="Thumbnail" class="news-thumb">
+            <a href="${news.url || '#'}" target="_blank" rel="noopener noreferrer" class="news-item">
+                <img src="${imageUrl}" alt="${news.title || 'Imagem'}" class="news-thumb">
                 <div>
-                    <p class="news-title">${news.title}</p>
-                    <p class="news-source">${news.source}</p>
+                    <p class="news-title">${news.title || 'Sem Título'}</p>
+                    <p class="news-source">${news.source || 'Sem Fonte'}</p>
                 </div>
-            </div>
+            </a>
         `;
     });
 
