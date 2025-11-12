@@ -4,7 +4,7 @@ let forecastChartInstance = null;
 let marketChartInstance = null;
 let marketHistoryData = {}; // Variável global para armazenar histórico de mercado
 
-// --- DADOS MOCKADOS FINAIS (Usados como Fallback) ---
+// --- DADOS MOCKADOS FINAIS (Usados como Fallback e para Câmbio/IBOV estático temporário) ---
 const MOCKED_MARKET_DATA = [
     { pair: "IBOV", price: "128.500", change: 0.17, volume: "105.4M" }, 
     { pair: "EUR/USD", price: "1.0095", change: -0.32, volume: "1.2M" },
@@ -93,25 +93,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderMarketData(); 
     renderNewsData();
     
-    // 3. Configura o botão de busca
+    // 3. Configura o botão de busca (CORREÇÃO DE FUNCIONALIDADE CRÍTICA)
     const searchButton = document.getElementById('search-button');
     const cityInput = document.getElementById('city-input');
 
-    searchButton.addEventListener('click', () => {
+    // Função de Busca Reutilizável
+    const performSearch = () => {
         const cityName = cityInput.value.trim(); 
         if (cityName) {
-            fetchClima(cityName);
+            // CORREÇÃO: Adicionamos ', BR' se o usuário não o incluiu (para geocodificação mais precisa)
+            const query = cityName.includes(',') ? cityName : `${cityName}, BR`;
+            fetchClima(query);
         } else {
             alert('Por favor, digite o nome de uma cidade.');
         }
-    });
+    };
 
-    cityInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            searchButton.click();
-        }
-    });
+    // Anexar evento de clique ao botão
+    if (searchButton) {
+        searchButton.addEventListener('click', performSearch);
+    } else {
+        console.error("ERRO CRÍTICO: ID 'search-button' não encontrado no HTML."); 
+    }
+
+    // Anexar evento de tecla Enter ao input
+    if (cityInput) {
+        cityInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+    } else {
+         console.error("ERRO CRÍTICO: ID 'city-input' não encontrado no HTML.");
+    }
 });
+
+// --- FUNÇÃO AUXILIAR PARA FORMATAR TEMPO UNIX (HH:MM) ---
+function formatUnixTime(timestamp) {
+    if (!timestamp) return '--:--';
+    const date = new Date(timestamp * 1000); 
+    
+    return date.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false // Formato 24h
+    });
+}
+
 
 // --- FUNÇÃO DE CRIAÇÃO DE GRÁFICO DE HORA ---
 function createHourlyChart(hourlyForecast) {
@@ -221,7 +249,7 @@ async function fetchClima(query) {
         { day: 'Seg', icon: '10d', high: 30, low: 17 }, { day: 'Ter', icon: '03d', high: 33, low: 21 }, 
         { day: 'Qua', icon: '01d', high: 34, low: 22 }, 
     ];
-    const FALLBACK_MOCKED_CURRENT = { temp_atual: 36, icone_atual: '01d', descricao_atual: 'DADOS MOCKADOS', umidade: 75, vento: 3.3, pressao: 1012 };
+    const FALLBACK_MOCKED_CURRENT = { temp_atual: 36, icone_atual: '01d', descricao_atual: 'DADOS MOCKADOS', umidade: 75, vento: 3.3, pressao: 1012, sunrise: '06:00', sunset: '18:00' };
     // -------------------------------------------------------------
     
     // --- LÓGICA DE DETECÇÃO DE TIPO DE REQUISIÇÃO ---
@@ -275,7 +303,20 @@ async function fetchClima(query) {
         const currentIcon = data.icone_atual;
         const currentDesc = data.descricao_atual.toUpperCase();
         
-        // 2. ESTRUTURA HTML FINAL
+        // 2. INJEÇÃO DE DADOS ASTRONÔMICOS (Novo)
+        const sunriseTime = data.sunrise || FALLBACK_MOCKED_CURRENT.sunrise; // Assume que o backend retorna a hora formatada
+        const sunsetTime = data.sunset || FALLBACK_MOCKED_CURRENT.sunset;
+        
+        // Injeta os horários na seção DETALHES ASTRONÔMICOS
+        if (document.getElementById('sunrise-value')) {
+             document.getElementById('sunrise-value').textContent = sunriseTime;
+        }
+        if (document.getElementById('sunset-value')) {
+             document.getElementById('sunset-value').textContent = sunsetTime;
+        }
+
+
+        // 3. ESTRUTURA HTML FINAL
         climaDiv.innerHTML = `
             <div id="current-main-details" class="weather-current-details">
                 <img src="http://openweathermap.org/img/wn/${currentIcon}@4x.png" alt="Ícone do Clima" class="weather-icon flex-shrink-0">
@@ -326,7 +367,7 @@ async function fetchClima(query) {
             </div>
         `;
 
-        // 3. Configurar Listeners e Gráfico
+        // 4. Configurar Listeners e Gráfico
         createHourlyChart(currentForecastData.hourlyForecast); 
         
         document.querySelectorAll('.day-selector-btn').forEach(btn => {
@@ -398,6 +439,14 @@ async function fetchClima(query) {
                 </div>
             </div>
         `;
+        // Injeta Mocks nos detalhes Astronômicos se o clima falhar
+        if (document.getElementById('sunrise-value')) {
+             document.getElementById('sunrise-value').textContent = FALLBACK_MOCKED_CURRENT.sunrise;
+        }
+        if (document.getElementById('sunset-value')) {
+             document.getElementById('sunset-value').textContent = FALLBACK_MOCKED_CURRENT.sunset;
+        }
+        
         createHourlyChart(currentForecastData.hourlyForecast); 
         document.querySelectorAll('.day-selector-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -451,17 +500,30 @@ async function renderMarketData() {
             console.error("Erro na API de Cotação:", apiData.error || response.statusText);
             // Fallback para dados mockados se a API falhar
             data = MOCKED_MARKET_DATA; 
+            marketHistoryData = {};
         } else {
             // Usa os dados REAIS retornados da função Netlify
             data = apiData.marketData; 
-            marketHistoryData = apiData.marketHistory;
+            marketHistoryData = apiData.marketHistory || {};
         }
         
     } catch (e) {
         console.error("Falha ao se comunicar com o Servidor de Cotação.");
         // Fallback total
         data = MOCKED_MARKET_DATA; 
+        marketHistoryData = {};
     }
+
+    // ------------------------------------------------------------------
+    // CORREÇÃO CRÍTICA: Se data for vazio ou nulo, saia e mostre mensagem.
+    if (!data || data.length === 0) {
+        marketTableDiv.innerHTML = "<p class='text-red-400 mt-4'>Não foi possível carregar dados de mercado.</p>";
+        // Limpa o gráfico também
+        const marketChartDiv = document.getElementById('market-chart');
+        marketChartDiv.innerHTML = "";
+        return; 
+    }
+    // ------------------------------------------------------------------
 
 
     // Inicializa o gráfico do primeiro ativo (usando o primeiro da API)
@@ -574,9 +636,9 @@ function renderNewsData() {
 
     try {
         // Tenta buscar notícias reais (requer a função getNews.js)
-        // O AWAIT é permitido aqui, pois DOMContentLoaded é async.
         
-        // **Este bloco será descomentado quando você tiver certeza que o getNews.js está pronto:**
+        // NOTE: A chamada está comentada no código final para evitar erros de bloqueio.
+        // Se a sua função getNews.js for funcional, descomente este bloco:
         /*
         const response = await fetch('/.netlify/functions/getNews');
         const apiData = await response.json();
