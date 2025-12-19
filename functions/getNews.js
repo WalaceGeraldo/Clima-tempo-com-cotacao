@@ -1,57 +1,73 @@
 // functions/getNews.js
 const axios = require('axios');
 
-// ATENÇÃO: A variável é lida como NEWSDATA_API_KEY
-const API_KEY = process.env.NEWSDATA_API_KEY; 
-const BASE_URL = 'https://newsdata.io/api/1/news?';
+// Usando NEWSAPI_API_KEY (agora com a chave da newsdata.io)
+const API_KEY = process.env.NEWSAPI_API_KEY;
+const BASE_URL = 'https://newsdata.io/api/1/latest?';
 
 exports.handler = async (event, context) => {
     if (!API_KEY) {
         return {
-            statusCode: 500,
-            body: JSON.stringify({ error: "Chave da API (NEWSDATA_API_KEY) não está configurada." }),
+            statusCode: 200, // Retorna 200 para o frontend tratar sem erro de console crítico
+            body: JSON.stringify({ error: "Chave da API (NEWSAPI_API_KEY) não está configurada." }),
         };
     }
-    
-    // Parâmetros de busca: 
-    // country=br, language=pt, category=business (Economia/Negócios)
-    const url = `${BASE_URL}apikey=${API_KEY}&country=br&language=pt&category=business&size=6`;
-    
+
+    // Aceita parâmetro de paginação 'page'
+    const { page } = event.queryStringParameters || {};
+
+    // Parâmetros para newsdata.io: apikey, country=br, language=pt
+    let url = `${BASE_URL}apikey=${API_KEY}&country=br&language=pt`;
+    if (page) {
+        url += `&page=${page}`;
+    }
+
     try {
         const response = await axios.get(url);
-        const articles = response.data.results; // NewsData.io usa 'results' para o array principal
-        
+        // Newsdata.io retorna "results" em vez de "articles" e "nextPage" para paginação
+        const articles = response.data.results;
+        const nextPage = response.data.nextPage;
+
         if (!articles || articles.length === 0) {
-             throw new Error("NewsData.io retornou zero artigos.");
+            // Se for página > 1 e não tiver resultados, pode ser o fim da lista, não necessariamente erro.
+            if (page) {
+                return {
+                    statusCode: 200,
+                    body: JSON.stringify({ news: [], nextPage: null }),
+                };
+            }
+            throw new Error("Newsdata.io retornou zero artigos.");
         }
 
-        // Mapeamos os dados para o formato que o frontend espera
         const newsData = articles.map(article => ({
             title: article.title || "Notícia sem título",
             source: article.source_id || "Fonte Desconhecida",
-            // NewsData.io usa o campo 'image_url'
-            imageUrl: article.image_url || null, 
-            url: article.link // NewsData.io usa 'link'
-        })).filter(item => item.url); // Filtra itens sem URL válida
+            imageUrl: article.image_url || null, // Newsdata.io usa image_url
+            url: article.link,                   // Newsdata.io usa link
+            publishedAt: article.pubDate,        // Newsdata.io usa pubDate
+            description: article.description     // Newsdata.io usa description
+        })).filter(item => item.url && item.imageUrl); // Filtra itens sem URL ou imagem
 
         return {
             statusCode: 200,
             body: JSON.stringify({
-                news: newsData, 
+                news: newsData,
+                nextPage: nextPage // Retorna o token para a próxima página
             }),
         };
 
     } catch (error) {
-        console.error('Erro na função de notícias (NewsData.io):', error.message);
-        // Retorna um erro detalhado se a API falhar
-        let errorMessage = error.message;
-        if (error.response && error.response.data && error.response.data.results) {
-             errorMessage = error.response.data.results; // Pega a mensagem de erro específica da NewsData.io
+        console.error('Erro na função de notícias (Newsdata.io):', error.message);
+
+        let msg = error.message;
+        if (error.response && error.response.data) {
+            console.error("Newsdata Error details:", JSON.stringify(error.response.data));
+            msg += ` - ${JSON.stringify(error.response.data)}`;
         }
 
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: `Falha ao buscar notícias (NewsData.io): ${errorMessage}` }),
+            body: JSON.stringify({ error: `Falha ao buscar notícias: ${msg}` }),
         };
     }
 };

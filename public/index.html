@@ -1,104 +1,110 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Data Hub - Portfólio</title>
-    
+    <title>Global Data Hub - Premium Dashboard</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
-    
-    <style>
-        /* AJUSTE FINAL: Reduz o tamanho da fonte raiz para 13px (tornando tudo menor) */
-        html {
-            font-size: 13px; 
-        }
-        body {
-             font-family: 'Inter', sans-serif;
-        }
-    </style>
 </head>
+
 <body>
-    
-    <header class="header-main">
-        <div class="header-container">
-            <div class="logo-group">
-                <span class="logo-icon">🌐</span>
-                <h1 class="logo-text">GLOBAL DATA HUB</h1>
-            </div>
-            <nav class="nav-menu">
-                <a href="#" class="nav-link">Weather</a>
-                <a href="#" class="nav-link">Markets</a>
-                <a href="#" class="nav-link">News</a>
-            </nav>
-            <button id="search-mobile" class="mobile-menu-btn">☰</button>
-        </div>
-    </header>
+    <!-- Background Elements -->
+    <div class="background-gradient"></div>
+    <div class="background-overlay"></div>
 
-    <main class="main-container">
-        
-        <div class="search-bar-wrap">
-             <div class="search-input-group">
-                <input 
-                    type="text" 
-                    id="city-input" 
-                    placeholder="Buscar cidade (Ex: Nova Iorque)" 
-                    class="city-input-field"
-                >
-                <button 
-                    id="search-button" 
-                    class="search-btn"
-                >
-                    Buscar
-                </button>
-            </div>
-        </div>
+    <div class="app-container">
 
-        
-        <section class="top-row-layout">
-            
-            <div id="local-weather-card" class="data-card weather-card top-row-item">
-                <div class="card-header-group">
-                    <h2 class="card-title">PREVISÃO DO TEMPO</h2>
-                    <span class="card-subtitle">Atualizado Agora</span> 
+        <header class="glass-header">
+            <div class="header-content">
+                <div class="logo-group">
+                    <span class="logo-icon">🌐</span>
+                    <h1 class="logo-text">Global Data Hub</h1>
                 </div>
-                <div id="clima-data" class="clima-content-area">
+
+                <div class="search-bar-wrap">
+                    <div class="search-input-group">
+                        <input type="text" id="city-input" placeholder="Buscar cidade..." class="glass-input">
+                        <button id="search-button" class="glass-btn-icon">
+                            🔍
+                        </button>
                     </div>
-            </div>
-
-            <div id="live-market-data-card" class="data-card market-card top-row-item">
-                <h2 class="card-title">BOLSA EM TEMPO REAL</h2>
-                <div id="market-chart" class="market-chart-area">
                 </div>
-                <div id="market-table-data" class="market-table-area">
-                </div>
+
+                <nav class="nav-menu">
+                    <a href="#" class="nav-link active">Painel</a>
+                    <a href="#" class="nav-link">Mercado</a>
+                    <a href="#" class="nav-link">Notícias</a>
+                </nav>
+                <button id="search-mobile" class="mobile-menu-btn">☰</button>
             </div>
+        </header>
 
-        </section>
-
-
-        <section class="bottom-row-layout">
-            
-            <div id="trending-news-card-lg" class="data-card news-card-lg news-main">
-                <h2 class="card-title">TRENDING NEWS</h2>
-                <div id="news-data-lg" class="news-list-area">
+        <main class="dashboard-grid">
+            <!-- Weather Section -->
+            <section id="local-weather-card" class="glass-card weather-section">
+                <div class="card-header">
+                    <h2 class="card-title">Clima Local</h2>
+                    <span class="live-indicator">● Ao Vivo</span>
                 </div>
-            </div>
-
-            <div id="trending-news-card-sm" class="data-card news-card-sm news-side">
-                <h2 class="card-title">TRENDING NEWS</h2>
-                <div id="news-data-sm" class="news-list-area">
+                <div id="clima-data" class="weather-content">
+                    <!-- Weather data injected here -->
                 </div>
-            </div>
+            </section>
 
-        </section>
+            <!-- Market Section -->
+            <section id="live-market-data-card" class="glass-card market-section">
+                <div class="card-header">
+                    <h2 class="card-title">Mercado Financeiro</h2>
+                </div>
+                <div id="market-chart" class="chart-container">
+                    <!-- Chart injected here -->
+                </div>
+                <div id="market-table-data" class="market-list">
+                    <!-- Table data injected here -->
+                </div>
+            </section>
 
-    </main>
+            <!-- News Section (Large) -->
+            <section id="trending-news-card-lg" class="glass-card news-section-lg">
+                <div class="card-header">
+                    <h2 class="card-title">Notícias em Destaque</h2>
+                </div>
+
+                <!-- NEW: Featured News Hero -->
+                <div id="featured-news-card" class="featured-news-hero">
+                    <!-- Featured content injected here -->
+                </div>
+
+                <div id="news-data-lg" class="news-grid">
+                    <!-- News injected here -->
+                </div>
+            </section>
+
+            <!-- News Section (Small/Sidebar) -->
+            <section id="trending-news-card-sm" class="glass-card news-section-sm">
+                <div class="card-header">
+                    <h2 class="card-title">Giro Rápido</h2>
+                </div>
+                <div id="news-data-sm" class="news-grid">
+                    <!-- News injected here -->
+                </div>
+            </section>
+        </main>
+
+        <footer class="glass-footer">
+            <p>&copy; 2025 Global Data Hub. Design Premium.</p>
+        </footer>
+    </div>
 
     <script src="js/scripts.js"></script>
 </body>
+
 </html>

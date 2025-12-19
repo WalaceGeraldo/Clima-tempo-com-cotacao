@@ -1,23 +1,29 @@
 // public/js/scripts.js
 
-let forecastChartInstance = null; 
+let forecastChartInstance = null;
 let marketChartInstance = null;
 let marketHistoryData = {}; // Variável global para armazenar histórico de mercado
+let nextPageCursor = null; // Token para paginação
+let isLoadingNews = false; // Flag para evitar múltiplas requisições
+
 
 // --- DADOS MOCKADOS FINAIS (Usados como Fallback e para Câmbio/IBOV estático temporário) ---
 const MOCKED_MARKET_DATA = [
-    { pair: "IBOV", price: "128.500", change: 0.17, volume: "105.4M" }, 
+    { pair: "IBOV", price: "128.500", change: 0.17, volume: "105.4M" },
     { pair: "EUR/USD", price: "1.0095", change: -0.32, volume: "1.2M" },
     { pair: "XRP/BRL", price: "4.32", change: 0.85, volume: "2.1M" },
-    { pair: "PETR4", price: "30.50", change: 0.50, volume: "65.1M" }, 
+    { pair: "PETR4", price: "30.50", change: 0.50, volume: "65.1M" },
     { pair: "VALE3", price: "64.62", change: -1.12, volume: "42.0M" },
     { pair: "ITUB4", price: "30.96", change: -0.30, volume: "39.7M" },
 ];
 
 const MOCKED_NEWS_DATA = [
-    { title: "Tech Stocks Rally Amidst Increase Volatility", source: "MarketWatch", imageUrl: "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" },
-    { title: "How Bitcoin Bulls Dominate Amidst Regulatory Concerns", source: "CoinDesk", imageUrl: "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" },
-    { title: "Global Economic Outlook: What to Expect Next Quarter", source: "Bloomberg", imageUrl: "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS" }
+    { title: "Moraes autoriza PF a interrogar Bolsonaro sobre cofres achados", source: "G1", description: "Moraes libera visitas permanentes de Michelle", imageUrl: "https://via.placeholder.com/300x160/334155/ffffff?text=POLITICA" },
+    { title: "'Se tiver filho meu envolvido, será investigado', diz Lula", source: "UOL", description: "PF vê senador como 'sócio oculto' de organização", imageUrl: "https://via.placeholder.com/300x160/334155/ffffff?text=LULA" },
+    { title: "Quem é a herdeira de banqueiro alvo em ação sobre INSS", source: "Folha", description: "Blog: filho de nº2 trabalha no gabinete de Weverton", imageUrl: "https://via.placeholder.com/300x160/334155/ffffff?text=MERCADO" },
+    { title: "Lula faz convite para Gustavo Feliciano comandar o Turismo", source: "CNN", description: "Convite foi formalizado na presença de Hugo Motta", imageUrl: "https://via.placeholder.com/300x160/334155/ffffff?text=GOVERNO" },
+    { title: "TikTok assina acordo para venda nos EUA, diz site americano", source: "TechCrunch", description: "Empresa de Trump fecha fusão bilionária: confira", imageUrl: "https://via.placeholder.com/300x160/334155/ffffff?text=TIKTOK" },
+    { title: "Piloto da Nascar morre em queda de avião nos EUA; vídeo", source: "Globo Esporte", description: "Piloto da Nascar, mulher e filhos estavam no avião", imageUrl: "https://via.placeholder.com/300x160/334155/ffffff?text=ESPORTE" }
 ];
 
 const iconImages = {};
@@ -39,7 +45,7 @@ function loadIcons() {
                 resolve();
             };
             img.onerror = () => {
-                iconImages[item.name] = null; 
+                iconImages[item.name] = null;
                 resolve();
             };
             img.src = item.url;
@@ -50,7 +56,7 @@ function loadIcons() {
 // --- VARIÁVEIS GLOBAIS DE LOCALIZAÇÃO E DADOS ---
 let currentCityName = '';
 let currentCountry = '';
-let currentForecastData = {}; 
+let currentForecastData = {};
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -65,23 +71,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div class="h-24 bg-gray-700 rounded mt-4"></div>
     `;
-    
-    await loadIcons(); 
-    
+
+    await loadIcons();
+
     // 2. Tenta Auto-Detecção de Localização
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 // Sucesso: Chama fetchClima com as coordenadas
-                fetchClima({ 
-                    lat: position.coords.latitude, 
-                    lon: position.coords.longitude 
+                fetchClima({
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
                 });
             },
             (error) => {
                 // Falha ou Usuário Negou: Chama a busca padrão
                 console.warn('Geolocalização negada ou falhou. Carregando local padrão: Rio de Janeiro.');
-                fetchClima('Rio de Janeiro, BR'); 
+                fetchClima('Rio de Janeiro, BR');
             },
             { timeout: 5000 } // Tempo limite de 5 segundos
         );
@@ -89,17 +95,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Navegador não suporta Geolocalização: Chama a busca padrão
         fetchClima('Rio de Janeiro, BR');
     }
-    
-    renderMarketData(); 
+
+    renderMarketData();
     renderNewsData();
-    
+
     // 3. Configura o botão de busca (CORREÇÃO DE FUNCIONALIDADE CRÍTICA)
     const searchButton = document.getElementById('search-button');
     const cityInput = document.getElementById('city-input');
 
     // Função de Busca Reutilizável
     const performSearch = () => {
-        const cityName = cityInput.value.trim(); 
+        const cityName = cityInput.value.trim();
         if (cityName) {
             // CORREÇÃO: Adicionamos ', BR' se o usuário não o incluiu (para geocodificação mais precisa)
             const query = cityName.includes(',') ? cityName : `${cityName}, BR`;
@@ -113,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (searchButton) {
         searchButton.addEventListener('click', performSearch);
     } else {
-        console.error("ERRO CRÍTICO: ID 'search-button' não encontrado no HTML."); 
+        console.error("ERRO CRÍTICO: ID 'search-button' não encontrado no HTML.");
     }
 
     // Anexar evento de tecla Enter ao input
@@ -124,17 +130,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     } else {
-         console.error("ERRO CRÍTICO: ID 'city-input' não encontrado no HTML.");
+        console.error("ERRO CRÍTICO: ID 'city-input' não encontrado no HTML.");
     }
 });
 
 // --- FUNÇÃO AUXILIAR PARA FORMATAR TEMPO UNIX (HH:MM) ---
 function formatUnixTime(timestamp) {
     if (!timestamp) return '--:--';
-    const date = new Date(timestamp * 1000); 
-    
-    return date.toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
+    const date = new Date(timestamp * 1000);
+
+    return date.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
         minute: '2-digit',
         hour12: false // Formato 24h
     });
@@ -146,11 +152,11 @@ function createHourlyChart(hourlyForecast) {
     if (forecastChartInstance) {
         forecastChartInstance.destroy();
     }
-    
+
     const canvas = document.getElementById('forecast-chart-canvas');
-    if (!canvas) return; 
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    
+
     const hourlyTemps = hourlyForecast.map(h => h.temp);
     const hourlyLabels = hourlyForecast.map(h => h.label);
     const iconSet = hourlyForecast.map(h => {
@@ -172,19 +178,19 @@ function createHourlyChart(hourlyForecast) {
                 backgroundColor: 'rgba(99, 102, 241, 0.2)',
                 fill: 'start',
                 tension: 0.4,
-                pointRadius: 16, 
-                pointStyle: iconSet, 
-                pointBackgroundColor: 'rgba(0,0,0,0)' 
+                pointRadius: 16,
+                pointStyle: iconSet,
+                pointBackgroundColor: 'rgba(0,0,0,0)'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                x: { 
-                    reverse: false, 
-                    grid: { display: false }, 
-                    ticks: { color: '#9ca3af' } 
+                x: {
+                    reverse: false,
+                    grid: { display: false },
+                    ticks: { color: '#9ca3af' }
                 },
                 y: { display: false, grid: { display: false } }
             },
@@ -199,11 +205,11 @@ function createHourlyChart(hourlyForecast) {
 // --- FUNÇÃO PRINCIPAL DE ATUALIZAÇÃO DO CLIMA AO CLICAR NO DIA ---
 function updateMainWeatherDetails(dayIndex) {
     const dayData = currentForecastData.dailyForecast[dayIndex];
-    
+
     const mainDetailsDiv = document.getElementById('current-main-details');
 
     if (!mainDetailsDiv || !dayData) return;
-    
+
     // Captura os dados ATUAIS injetados na carga inicial (fetchClima)
     const currentTemp = mainDetailsDiv.querySelector('.current-temp').textContent;
     const currentIcon = mainDetailsDiv.querySelector('.weather-icon').src;
@@ -219,7 +225,7 @@ function updateMainWeatherDetails(dayIndex) {
             <p class="current-location">Máx: ${dayData.high}°C | Mín: ${dayData.low}°C</p>
         </div>
     `;
-    
+
     // Atualizar destaque do dia
     document.querySelectorAll('.day-selector-btn').forEach(b => b.classList.remove('active-day-selector'));
     document.querySelector(`[data-day-index="${dayIndex}"]`)?.classList.add('active-day-selector');
@@ -229,7 +235,7 @@ function updateMainWeatherDetails(dayIndex) {
 // ===========================================
 // FUNÇÃO DE CLIMA (SUPORTE A COORDENADAS E BUSCA MANUAL)
 // ===========================================
-async function fetchClima(query) { 
+async function fetchClima(query) {
     const climaDiv = document.getElementById('clima-data');
 
     if (forecastChartInstance) {
@@ -238,36 +244,36 @@ async function fetchClima(query) {
 
     // --- DADOS MOCKADOS DE FALLBACK (PARA CASO DE ERRO NA API) ---
     const FALLBACK_MOCKED_HOURLY_FORECAST = [
-        { label: '14h', temp: 25, icon: '01d' }, { label: '15h', temp: 22, icon: '02d' }, 
-        { label: '16h', temp: 24, icon: '04d' }, { label: '17h', temp: 23, icon: '01d' }, 
+        { label: '14h', temp: 25, icon: '01d' }, { label: '15h', temp: 22, icon: '02d' },
+        { label: '16h', temp: 24, icon: '04d' }, { label: '17h', temp: 23, icon: '01d' },
         { label: '18h', temp: 21, icon: '03d' }, { label: '19h', temp: 19, icon: '09d' },
     ];
     const diaAtual = new Date().toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3);
     const FALLBACK_MOCKED_DAILY_FORECAST = [
-        { day: diaAtual, icon: '01d', high: 36, low: 20 }, { day: 'Sex', icon: '02d', high: 35, low: 19 }, 
-        { day: 'Sáb', icon: '04d', high: 32, low: 18 }, { day: 'Dom', icon: '09d', high: 28, low: 15 }, 
-        { day: 'Seg', icon: '10d', high: 30, low: 17 }, { day: 'Ter', icon: '03d', high: 33, low: 21 }, 
-        { day: 'Qua', icon: '01d', high: 34, low: 22 }, 
+        { day: diaAtual, icon: '01d', high: 36, low: 20 }, { day: 'Sex', icon: '02d', high: 35, low: 19 },
+        { day: 'Sáb', icon: '04d', high: 32, low: 18 }, { day: 'Dom', icon: '09d', high: 28, low: 15 },
+        { day: 'Seg', icon: '10d', high: 30, low: 17 }, { day: 'Ter', icon: '03d', high: 33, low: 21 },
+        { day: 'Qua', icon: '01d', high: 34, low: 22 },
     ];
     const FALLBACK_MOCKED_CURRENT = { temp_atual: 36, icone_atual: '01d', descricao_atual: 'DADOS MOCKADOS', umidade: 75, vento: 3.3, pressao: 1012, sunrise: '06:00', sunset: '18:00' };
     // -------------------------------------------------------------
-    
+
     // --- LÓGICA DE DETECÇÃO DE TIPO DE REQUISIÇÃO ---
     let url;
     let fallbackCity = 'Rio de Janeiro, BR';
-    
+
     if (typeof query === 'object' && query.lat && query.lon) {
         // GeoLocalização: Passa Lat/Lon para o backend
         url = `/.netlify/functions/getClima?lat=${query.lat}&lon=${query.lon}&lang=pt`;
-        fallbackCity = `${query.lat}, ${query.lon}`; 
+        fallbackCity = `${query.lat}, ${query.lon}`;
     } else if (typeof query === 'string' && query.trim() !== '') {
         // Busca Manual: Passa a cidade
         fallbackCity = query;
-        url = `/.netlify/functions/getClima?city=${encodeURIComponent(query)}&lang=pt`; 
+        url = `/.netlify/functions/getClima?city=${encodeURIComponent(query)}&lang=pt`;
     } else {
-        return; 
+        return;
     }
-    
+
     // Configura o loader antes de buscar
     climaDiv.innerHTML = `<p class="text-gray-400 mt-4">Buscando clima para ${typeof query === 'string' ? query : 'sua localização'}...</p>`;
 
@@ -280,7 +286,7 @@ async function fetchClima(query) {
             climaDiv.innerHTML = `<p class="text-red-400">Erro de rede (${response.status}) ao buscar a função.</p>`;
             throw new Error("Falha na rede da função Netlify.");
         }
-        
+
         data = await response.json();
 
         if (data.error) {
@@ -290,29 +296,29 @@ async function fetchClima(query) {
             </p>`;
             throw new Error(`Erro da API: ${data.error}`);
         }
-        
+
         // --- 1. ARMAZENAR DADOS GLOBAIS REAIS ---
         currentCityName = data.cidade || fallbackCity;
         currentCountry = data.pais || 'BR';
-        currentForecastData.hourlyForecast = data.hourlyForecast; 
+        currentForecastData.hourlyForecast = data.hourlyForecast;
         currentForecastData.dailyForecast = data.dailyForecast;
-        
+
         // **VARIÁVEIS CHAVE PARA O DISPLAY INICIAL (DIA ATUAL E TEMP ATUAL)**
         const currentDayData = currentForecastData.dailyForecast[0];
-        const currentTemp = data.temp_atual; 
+        const currentTemp = data.temp_atual;
         const currentIcon = data.icone_atual;
         const currentDesc = data.descricao_atual.toUpperCase();
-        
+
         // 2. INJEÇÃO DE DADOS ASTRONÔMICOS (Novo)
         const sunriseTime = data.sunrise || FALLBACK_MOCKED_CURRENT.sunrise; // Assume que o backend retorna a hora formatada
         const sunsetTime = data.sunset || FALLBACK_MOCKED_CURRENT.sunset;
-        
+
         // Injeta os horários na seção DETALHES ASTRONÔMICOS
         if (document.getElementById('sunrise-value')) {
-             document.getElementById('sunrise-value').textContent = sunriseTime;
+            document.getElementById('sunrise-value').textContent = sunriseTime;
         }
         if (document.getElementById('sunset-value')) {
-             document.getElementById('sunset-value').textContent = sunsetTime;
+            document.getElementById('sunset-value').textContent = sunsetTime;
         }
 
 
@@ -368,8 +374,8 @@ async function fetchClima(query) {
         `;
 
         // 4. Configurar Listeners e Gráfico
-        createHourlyChart(currentForecastData.hourlyForecast); 
-        
+        createHourlyChart(currentForecastData.hourlyForecast);
+
         document.querySelectorAll('.day-selector-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const dayIndex = btn.getAttribute('data-day-index');
@@ -380,7 +386,7 @@ async function fetchClima(query) {
     } catch (error) {
         // --- Lógica de Fallback (Em caso de erro na API/Rede) ---
         console.warn('Usando dados mockados devido a erro:', error);
-        
+
         currentCityName = fallbackCity;
         currentCountry = 'BR';
         currentForecastData.hourlyForecast = FALLBACK_MOCKED_HOURLY_FORECAST;
@@ -441,13 +447,13 @@ async function fetchClima(query) {
         `;
         // Injeta Mocks nos detalhes Astronômicos se o clima falhar
         if (document.getElementById('sunrise-value')) {
-             document.getElementById('sunrise-value').textContent = FALLBACK_MOCKED_CURRENT.sunrise;
+            document.getElementById('sunrise-value').textContent = FALLBACK_MOCKED_CURRENT.sunrise;
         }
         if (document.getElementById('sunset-value')) {
-             document.getElementById('sunset-value').textContent = FALLBACK_MOCKED_CURRENT.sunset;
+            document.getElementById('sunset-value').textContent = FALLBACK_MOCKED_CURRENT.sunset;
         }
-        
-        createHourlyChart(currentForecastData.hourlyForecast); 
+
+        createHourlyChart(currentForecastData.hourlyForecast);
         document.querySelectorAll('.day-selector-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const dayIndex = btn.getAttribute('data-day-index');
@@ -465,15 +471,15 @@ function generateMockedDataForAsset(assetPair) {
     // CORREÇÃO: Garante que o valor exista antes de tentar usar .replace()
     const priceItem = MOCKED_MARKET_DATA.find(item => item.pair === assetPair);
     const priceStr = priceItem ? priceItem.price : "0.00";
-    
+
     // Agora o replace é seguro, pois priceStr é sempre uma string
-    const basePrice = parseFloat(priceStr.replace('.', '').replace(',', '.')) || 50; 
-    
+    const basePrice = parseFloat(priceStr.replace('.', '').replace(',', '.')) || 50;
+
     const dataPoints = [];
-    let currentPrice = basePrice * (1 + (Math.random() * 0.02 - 0.01)); 
-    
+    let currentPrice = basePrice * (1 + (Math.random() * 0.02 - 0.01));
+
     for (let i = 0; i < 6; i++) {
-        dataPoints.push(Math.round(currentPrice * 100) / 100); 
+        dataPoints.push(Math.round(currentPrice * 100) / 100);
         currentPrice += (Math.random() * 0.05 - 0.025) * basePrice;
     }
 
@@ -495,22 +501,22 @@ async function renderMarketData() {
         // Chama a função Serverless getCotacao para dados reais
         const response = await fetch('/.netlify/functions/getCotacao');
         const apiData = await response.json();
-        
+
         if (apiData.error || !response.ok) {
             console.error("Erro na API de Cotação:", apiData.error || response.statusText);
             // Fallback para dados mockados se a API falhar
-            data = MOCKED_MARKET_DATA; 
+            data = MOCKED_MARKET_DATA;
             marketHistoryData = {};
         } else {
             // Usa os dados REAIS retornados da função Netlify
-            data = apiData.marketData; 
+            data = apiData.marketData;
             marketHistoryData = apiData.marketHistory || {};
         }
-        
+
     } catch (e) {
         console.error("Falha ao se comunicar com o Servidor de Cotação.");
         // Fallback total
-        data = MOCKED_MARKET_DATA; 
+        data = MOCKED_MARKET_DATA;
         marketHistoryData = {};
     }
 
@@ -521,20 +527,20 @@ async function renderMarketData() {
         // Limpa o gráfico também
         const marketChartDiv = document.getElementById('market-chart');
         marketChartDiv.innerHTML = "";
-        return; 
+        return;
     }
     // ------------------------------------------------------------------
 
 
     // Inicializa o gráfico do primeiro ativo (usando o primeiro da API)
-    renderAssetChart(data[0].pair); 
-    
+    renderAssetChart(data[0].pair);
+
     // Renderizar Tabela de Dados de Mercado
     let tableHtml = '';
     data.forEach(item => {
         const variacaoClass = item.change > 0 ? 'up-text' : (item.change < 0 ? 'down-text' : 'neutral-text');
         const simbolo = item.change > 0 ? '▲' : (item.change < 0 ? '▼' : '—');
-        
+
         tableHtml += `
             <div class="market-table-row clickable-asset" data-asset="${item.pair}">
                 <span class="market-pair">${item.pair}</span>
@@ -545,7 +551,7 @@ async function renderMarketData() {
         `;
     });
     marketTableDiv.innerHTML = tableHtml;
-    
+
     // Adicionar event listeners após a renderização da tabela
     document.querySelectorAll('.clickable-asset').forEach(row => {
         row.addEventListener('click', () => {
@@ -555,7 +561,7 @@ async function renderMarketData() {
             row.classList.add('active-asset');
         });
     });
-    
+
     // Define o IBOV como ativo ativo por padrão no carregamento
     document.querySelector(`[data-asset="${data[0].pair}"]`)?.classList.add('active-asset');
 }
@@ -565,7 +571,7 @@ function renderAssetChart(assetPair) {
     const marketChartDiv = document.getElementById('market-chart');
     marketChartDiv.innerHTML = '<canvas id="market-chart-canvas"></canvas>';
     const ctx = document.getElementById('market-chart-canvas').getContext('2d');
-    
+
     // 1. Tenta usar dados históricos reais ou volta para o mock
     let chartLabels;
     let chartData;
@@ -594,7 +600,7 @@ function renderAssetChart(assetPair) {
                 label: `Preço ${assetPair}`,
                 data: chartData,
                 // Cor: verde se for real data, amarelo se for mock
-                borderColor: isRealData ? '#34d399' : '#f59e0b', 
+                borderColor: isRealData ? '#34d399' : '#f59e0b',
                 backgroundColor: isRealData ? 'rgba(52, 211, 153, 0.2)' : 'rgba(245, 158, 11, 0.2)',
                 fill: true,
                 tension: 0.4,
@@ -629,48 +635,156 @@ function renderAssetChart(assetPair) {
 }
 
 
-function renderNewsData() {
+async function renderNewsData() {
     const newsDataLgDiv = document.getElementById('news-data-lg');
     const newsDataSmDiv = document.getElementById('news-data-sm');
+    const featuredNewsDiv = document.getElementById('featured-news-card');
+
     let newsList = MOCKED_NEWS_DATA; // Usa o mock como fallback
 
     try {
         // Tenta buscar notícias reais (requer a função getNews.js)
-        
-        // NOTE: A chamada está comentada no código final para evitar erros de bloqueio.
-        // Se a sua função getNews.js for funcional, descomente este bloco:
-        /*
         const response = await fetch('/.netlify/functions/getNews');
         const apiData = await response.json();
 
         if (!apiData.error && response.ok && apiData.news && apiData.news.length > 0) {
-             newsList = apiData.news; 
+            newsList = apiData.news;
         } else {
-             console.warn("API de Notícias falhou ou não retornou dados.");
+            console.warn("API de Notícias falhou ou não retornou dados. Usando mock.");
         }
-        */
-
     } catch (e) {
-        console.error("Falha ao se comunicar com o Servidor de Notícias.");
+        console.error("Falha ao se comunicar com o Servidor de Notícias.", e);
         // Mantém o fallback
     }
 
-    let newsHtml = '';
-    newsList.forEach(news => {
-        // Correção de segurança para links nulos
-        const imageUrl = news.imageUrl || "https://via.placeholder.com/60x60/334155/ffffff?text=NEWS"; 
+    if (newsList.length === 0) return;
 
-        newsHtml += `
-            <a href="${news.url || '#'}" target="_blank" rel="noopener noreferrer" class="news-item">
-                <img src="${imageUrl}" alt="${news.title || 'Imagem'}" class="news-thumb">
-                <div>
-                    <p class="news-title">${news.title || 'Sem Título'}</p>
-                    <p class="news-source">${news.source || 'Sem Fonte'}</p>
+    // --- 1. LIMPAR DESTAQUE (PARA O LAYOUT GRID UNIFORME) ---
+    if (featuredNewsDiv) {
+        featuredNewsDiv.innerHTML = '';
+        featuredNewsDiv.style.display = 'none';
+    }
+
+    // --- 2. RENDERIZAR LISTA (DIVIDIDA ENTRE AS DUAS SEÇÕES) ---
+    // Divide as notícias na metade
+    const half = Math.ceil(newsList.length / 2);
+    const newsDetails = newsList.slice(0, half);
+    const newsQuick = newsList.slice(half);
+
+    // Função interna para gerar HTML de uma lista
+    const generateNewsHtml = (list) => {
+        if (list.length === 0) return '<p class="text-gray-400 text-sm">Sem notícias.</p>';
+
+        return list.map(news => {
+            const imageUrl = news.imageUrl || "https://placehold.co/300x160/1e293b/ffffff?text=NEWS";
+            let description = news.description || news.source || "Veja mais detalhes desta notícia.";
+            if (description.length > 80) description = description.substring(0, 80) + '...';
+
+            return `
+            <a href="${news.url || '#'}" target="_blank" rel="noopener noreferrer" class="news-card-custom">
+                <div class="news-thumb-wrapper">
+                    <img src="${imageUrl}" alt="${news.title || 'Imagem'}" class="news-thumb-rect">
+                </div>
+                <div class="news-content-custom">
+                    <h3 class="news-title-red">${news.title || 'Sem Título'}</h3>
+                    <div class="news-desc-wrapper">
+                        <span class="news-bullet main-bullet">●</span>
+                        <p class="news-desc-text">${description}</p>
+                    </div>
                 </div>
             </a>
-        `;
-    });
+            `;
+        }).join('');
+    };
 
-    newsDataLgDiv.innerHTML = newsHtml; 
-    newsDataSmDiv.innerHTML = newsHtml; 
+    if (newsDataLgDiv) newsDataLgDiv.innerHTML = generateNewsHtml(newsDetails);
+
+    // Para a sidebar ("Giro Rápido"), renderiza o restante
+    if (newsDataSmDiv) newsDataSmDiv.innerHTML = generateNewsHtml(newsQuick);
+
+    // Salva o token da próxima página e inicializa infinite scroll
+    if (typeof apiData !== 'undefined' && apiData.nextPage) {
+        nextPageCursor = apiData.nextPage;
+        setupInfiniteScroll();
+    }
+}
+
+function setupInfiniteScroll() {
+    const newsContainer = document.getElementById('news-data-lg');
+    if (!newsContainer) return;
+
+    // Remove listener anterior se houver (para evitar duplicação em reloads)
+    const newContainer = newsContainer.cloneNode(true);
+    newsContainer.parentNode.replaceChild(newContainer, newsContainer);
+
+    newContainer.addEventListener('scroll', () => {
+        // Verifica se chegou perto do fim (buffer de 50px)
+        if (newContainer.scrollTop + newContainer.clientHeight >= newContainer.scrollHeight - 50) {
+            loadMoreNews();
+        }
+    });
+}
+
+async function loadMoreNews() {
+    if (isLoadingNews || !nextPageCursor) return;
+    isLoadingNews = true;
+
+    const newsContainer = document.getElementById('news-data-lg');
+    // Pequeno loader visual
+    const loader = document.createElement('div');
+    loader.id = 'news-loader';
+    loader.className = 'text-center py-4 text-gray-400 text-xs';
+    loader.textContent = 'Carregando mais...';
+    newsContainer.appendChild(loader);
+
+    try {
+        const response = await fetch(`/.netlify/functions/getNews?page=${nextPageCursor}`);
+        const data = await response.json();
+
+        // Remove loader
+        const currentLoader = document.getElementById('news-loader');
+        if (currentLoader) currentLoader.remove();
+
+        if (data.news && data.news.length > 0) {
+            // Gera HTML (reutilizando lógica simplificada)
+            const generateNewsHtml = (list) => {
+                return list.map(news => {
+                    const imageUrl = news.imageUrl || "https://placehold.co/300x160/1e293b/ffffff?text=NEWS";
+                    let description = news.description || news.source || "Veja mais detalhes desta notícia.";
+                    if (description.length > 80) description = description.substring(0, 80) + '...';
+
+                    return `
+                    <a href="${news.url || '#'}" target="_blank" rel="noopener noreferrer" class="news-card-custom">
+                        <div class="news-thumb-wrapper">
+                            <img src="${imageUrl}" alt="${news.title || 'Imagem'}" class="news-thumb-rect">
+                        </div>
+                        <div class="news-content-custom">
+                            <h3 class="news-title-red">${news.title || 'Sem Título'}</h3>
+                            <div class="news-desc-wrapper">
+                                <span class="news-bullet main-bullet">●</span>
+                                <p class="news-desc-text">${description}</p>
+                            </div>
+                        </div>
+                    </a>
+                    `;
+                }).join('');
+            };
+
+            // Append HTML
+            newsContainer.insertAdjacentHTML('beforeend', generateNewsHtml(data.news));
+
+            // Atualiza cursor
+            nextPageCursor = data.nextPage || null;
+
+            if (!nextPageCursor) {
+                newsContainer.insertAdjacentHTML('beforeend', '<p class="text-center text-gray-500 text-xs py-2">Fim.</p>');
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao carregar mais notícias:", error);
+    } finally {
+        isLoadingNews = false;
+        const currentLoader = document.getElementById('news-loader');
+        if (currentLoader) currentLoader.remove();
+    }
 }
